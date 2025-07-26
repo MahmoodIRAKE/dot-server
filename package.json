@@ -1,0 +1,29 @@
+{
+  "name": "dotgroup_be",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "express-fileupload": "^1.5.2",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^13.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.3",
+    "mongoose-sequence": "^6.0.1",
+    "multer": "^2.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
