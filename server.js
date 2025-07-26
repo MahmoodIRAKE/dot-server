@@ -67,7 +67,8 @@ const startServer = async () => {
         });
         console.log('🟢 Connected to MongoDB');
 
-        await SCRIPT.seedAdmin()
+        // await SCRIPT.seedAdmin()
+        // await SCRIPT.seedClient()
         app.listen(PORT, () => {
             console.log(`🚀 Server running on http://localhost:${PORT}`);
         });
