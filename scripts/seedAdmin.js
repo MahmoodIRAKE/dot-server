@@ -12,7 +12,15 @@ const seedAdmin = async () => {
         const admin = await Admin.create({
             username: 'muslah.jaber@gmail.com',
             password: 'admin123',
-            role: 'superAdmin'
+            role: 'admin',
+            fullName: 'muslah'
+        });
+        const SuperAdmin = await Admin.create({
+            username: 'majd@gmail.com',
+            password: 'admin123',
+            role: 'superAdmin',
+            fullName: 'majd'
+
         });
         // Test password comparison
     } catch (error) {

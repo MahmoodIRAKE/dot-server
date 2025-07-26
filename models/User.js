@@ -22,7 +22,7 @@ const Users = new mongoose.Schema({
     },
     clientId:{
         type: String,
-        required: true,
+        required: false,
     },
     isActive: {
         type: Boolean,

@@ -9,15 +9,41 @@ const {
     blockUser,
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const authorizeRole = require("../middlewares/authorizeRole");
 
 const router = express.Router();
 
 // Order management routes
-router.get('/orders', authMiddleware, getAllOrders); // Get all orders
-router.get('/orders/:orderId', authMiddleware, getOrderDetails); // Get order details
-router.put('/orders/:orderId', authMiddleware, updateOrder); // Update order details
-router.patch('/orders/:orderId/status', authMiddleware, changeOrderStatus); // Change order status
-router.post('/orders/:orderId/files', authMiddleware, uploadFilesToOrder); // Upload files to order
+
+// Get all orders
+router.get('/orders',
+    authMiddleware,
+    authorizeRole("admin"),
+    getAllOrders);
+
+router.get('/orders/:orderId',
+    authMiddleware,
+    authorizeRole("admin"),
+    getOrderDetails); // Get order details
+
+// Update order details
+router.put('/orders/:orderId',
+    authMiddleware,
+    authorizeRole("admin"),
+    updateOrder);
+
+// Change order status
+router.patch('/orders/:orderId/status',
+    authMiddleware,
+    authorizeRole("admin"),
+    changeOrderStatus);
+
+// Upload files to order
+router.post('/orders/:orderId/files',
+    authMiddleware,
+    authorizeRole("admin"),
+    uploadFilesToOrder); // Upload files to order
+
 
 // User management routes
 router.post('/users', authMiddleware, addNewUser); // Add new user

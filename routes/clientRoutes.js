@@ -6,15 +6,30 @@ const {
     updateProfile,
 } = require('../controllers/clientController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const authorizeRole = require("../middlewares/authorizeRole");
 
 const router = express.Router();
 
 // Order routes for clients
-router.get('/orders', authMiddleware, getClientOrders); // Get client's orders
-router.post('/orders', authMiddleware, createOrder); // Create new order
-router.put('/orders/:orderId', authMiddleware, updateOrder); // Update order
+router.get('/orders',
+    authMiddleware,
+    authorizeRole("client"),
+    getClientOrders);
+
+router.post('/orders',
+    authMiddleware,
+    authorizeRole("client"),
+    createOrder);
+
+// Update order
+router.put('/orders/:orderId',
+    authMiddleware,
+    authorizeRole("client"),
+    updateOrder);
 
 // Profile routes for clients
-router.put('/users/:userId', authMiddleware, updateProfile); // Update profile
-
+router.put('/users/:userId',
+    authMiddleware,
+    authorizeRole("client"),
+    updateProfile);
 module.exports = router;

@@ -7,13 +7,6 @@ const { storage } = require('../services/firebaseService');
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
     try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
 
         // Get all orders with user information
         const orders = await Order.find()
@@ -37,14 +30,6 @@ const getAllOrders = async (req, res) => {
 // Get order details (Admin only)
 const getOrderDetails = async (req, res) => {
     try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
-
         const { orderId } = req.params;
 
         // Find order with user information
@@ -79,19 +64,11 @@ const getOrderDetails = async (req, res) => {
 // Update order details (Admin only)
 const updateOrder = async (req, res) => {
     try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
-
         const { orderId } = req.params;
 
         // Find the order
         const order = await Order.findById(orderId);
-        
+
         if (!order) {
             return res.status(404).json({
                 success: false,
@@ -184,13 +161,6 @@ const updateOrder = async (req, res) => {
 // Change order status manually (Admin only)
 const changeOrderStatus = async (req, res) => {
     try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
 
         const { orderId } = req.params;
         const { status } = req.body;

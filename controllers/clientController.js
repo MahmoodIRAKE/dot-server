@@ -4,13 +4,6 @@ const User = require('../models/User');
 // Create new order (Client only)
 const createOrder = async (req, res) => {
     try {
-        // Check if user has client role
-        if (req.user.role !== 'client') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Only clients can create orders.'
-            });
-        }
 
         // Validate required fields
         const {
@@ -68,13 +61,6 @@ const createOrder = async (req, res) => {
 // Get orders for the authenticated client
 const getClientOrders = async (req, res) => {
     try {
-        // Check if user has client role
-        if (req.user.role !== 'client') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Only clients can view their orders.'
-            });
-        }
 
         // Find orders for the authenticated client
         const orders = await Order.find({ userID: req.user.userId })
@@ -97,19 +83,12 @@ const getClientOrders = async (req, res) => {
 // Update order (Client only - can only update their own orders)
 const updateOrder = async (req, res) => {
     try {
-        // Check if user has client role
-        if (req.user.role !== 'client') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Only clients can update orders.'
-            });
-        }
 
         const { orderId } = req.params;
 
         // Find the order and verify ownership
-        const order = await Order.findById(orderId);
-        
+        const order = await Order.findOne({_id: orderId, userID: req.user.userId});
+
         if (!order) {
             return res.status(404).json({
                 success: false,
@@ -117,16 +96,9 @@ const updateOrder = async (req, res) => {
             });
         }
 
-        // Check if the order belongs to the authenticated client
-        if (order.userID.toString() !== req.user.userId.toString()) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. You can only update your own orders.'
-            });
-        }
 
         // Check if order can be updated (only allow updates for certain statuses)
-        if (['in progress', 'DONE', 'delayed', 'declined'].includes(order.status)) {
+        if ([ 'DONE', 'delayed', 'declined'].includes(order.status)) {
             return res.status(400).json({
                 success: false,
                 error: 'Cannot update order with current status. Contact admin for changes.'
@@ -203,21 +175,7 @@ const updateOrder = async (req, res) => {
 // Update client profile
 const updateProfile = async (req, res) => {
     try {
-        // Check if user has client role
-        if (req.user.role !== 'client') {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Only clients can update their profile.'
-            });
-        }
 
-        // Check if user is updating their own profile
-        if (req.params.userId !== req.user.userId.toString()) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. You can only update your own profile.'
-            });
-        }
 
         const { fullName, username } = req.body;
 
