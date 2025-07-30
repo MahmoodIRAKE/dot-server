@@ -57,7 +57,7 @@ const signUp = async (req, res) => {
 
             firebaseUser = await admin.auth().createUser({
                 email: `${phoneNumber}@dot.com`, // Create email from phone number
-                password: password,
+                password: "123456aA!",
                 displayName: fullName,
                 phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`, // Format for Firebase (assuming Israeli numbers)
                 disabled: false,
