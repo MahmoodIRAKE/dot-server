@@ -4,7 +4,9 @@ const {
     getClientOrders,
     updateOrder,
     updateProfile,
-    saveImagesPath
+    saveImagesPath,
+    orderConfirm
+
 } = require('../controllers/clientController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
@@ -35,6 +37,12 @@ router.post('/orders/:orderId/files',
     authMiddleware,
     authorizeRole("client"),
     saveImagesPath);
+
+router.put('/orders/:orderId/files',
+    authMiddleware,
+    authorizeRole("client"),
+    orderConfirm
+);
 
 // Profile routes for clients
 router.put('/users/:userId',

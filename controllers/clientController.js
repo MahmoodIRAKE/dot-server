@@ -98,14 +98,6 @@ const updateOrder = async (req, res) => {
         }
 
 
-        // Check if order can be updated (only allow updates for certain statuses)
-        if ([ 'DONE', 'delayed', 'declined'].includes(order.status)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Cannot update order with current status. Contact admin for changes.'
-            });
-        }
-
         // Extract updatable fields (clients cannot update status, totalPrice, or admin fields)
         const {
             customerFullName,
@@ -118,27 +110,7 @@ const updateOrder = async (req, res) => {
             notes
         } = req.body;
 
-        // Validate required fields if they're being updated
-        if (customerFullName !== undefined && !customerFullName) {
-            return res.status(400).json({
-                success: false,
-                error: 'customerFullName cannot be empty'
-            });
-        }
 
-        if (customerPhoneNumber !== undefined && !customerPhoneNumber) {
-            return res.status(400).json({
-                success: false,
-                error: 'customerPhoneNumber cannot be empty'
-            });
-        }
-
-        if (customerAddress !== undefined && !customerAddress) {
-            return res.status(400).json({
-                success: false,
-                error: 'customerAddress cannot be empty'
-            });
-        }
 
         // Create update object with only allowed fields
         const updateData = {};
@@ -180,7 +152,25 @@ const saveImagesPath = async (req, res )=>{
     res.status(200).json({
         success: true,
         message: 'paths saved  successfully',
-    });}
+    });
+};
+const orderConfirm = async (req, res )=>{
+
+    try{
+        await Order.findByIdAndUpdate(
+            req.params.userId,
+            {
+                status:'paymentR'
+            },
+            { new: true, runValidators: true })
+    }catch (e) {
+        console.error('Error changing status:', e);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while changing status'
+        });
+    }
+}
 // Update client profile
 const updateProfile = async (req, res) => {
     try {
@@ -227,5 +217,6 @@ module.exports = {
     getClientOrders,
     updateOrder,
     updateProfile,
-    saveImagesPath
+    saveImagesPath,
+    orderConfirm
 };
