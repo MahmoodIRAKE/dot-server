@@ -165,7 +165,9 @@ const verify = async (req, res) => {
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
-                clientId: user.clientId
+                clientId: user.clientId,
+                firebaseUid: user.firebaseUid
+
             }
         });
 
@@ -234,7 +236,8 @@ const signIn = async (req, res) => {
                 username: user.username,
                 phoneNumber: user.phoneNumber,
                 role: user.role,
-                clientId: user.clientId
+                clientId: user.clientId,
+                firebaseUid: user.firebaseUid
             }
         });
 
