@@ -1,17 +1,5 @@
 const admin = require("firebase-admin");
-const serviceAccount = {
-    "type": "service_account",
-    "project_id": "dot-dev-16260",
-    "private_key_id": "fbf8938638f2736fbe2a0405042476bea041e4d8",
-    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDA2zkKc7xwTuD/\nRGsQ8xQL8wzz2ypLF5fY3ZpDh2+jhkGzbfdQwNmneK3VxGD7SxDX1ejtRQJnkYs/\nHotk1ogQiODr1HL5Mau66iwUn565DPFnBk5XYrXmCdAkE0c3ZcjOQTC7EcK1Is05\nkuTEaW0VkS78Xn+UbmCtbAyr0n77o0tzFrLUEeBK/xa22PhGgRVNF5fMsv+hZ1va\nfdMFGez8E9UdbsYEgXZayWeIeyaK1U/dYmgRxga6g+3lUgK2nUJPWeeO4eFvJpNo\ns6670344h+UWjkC7gYk/ZyvoW2bbcMIKK37vhFD8FXZRAWpbuUYvp6T1Q/zjp47t\n/4Yp/2UXAgMBAAECgf8hJYyoPzwkEWqadSfxwdWwOBYB06lxPpzaqTvaX2zQrkKc\nlEntlzfRkOxP0XDZwA0lC579KN9A7cMBFj7fFgBM1znRTrJ0IhViCt2IreaZ55+W\nFX9hhZW98/HSQX38B4J78Lhvbp4Ig/LB8n1fRL969Xkd5yAGYvI63FdRMNyiYyIb\nloxuvE9BtgH87QrR/XG+o19qWi2NJ2RA5tOIl0IA/wc965TvY70JWhfYQZ759Qf1\nPKIg0zhjcMiWJx7QMTBQUwN9tIW5is76JzMFHTzFOxiYt6ZntHX9UTFSpOvQk56c\nxvYU5u2LtAdWY1F4BMsiNXsiiVpEw0NUMApeW0ECgYEA6W2kfI9uyvgLV4J0H77P\nRpGqhMSbBg7NKGgPlQC2JgYHyYzJ9p2lcA1IbEKu+CrJVaQO4abacKT2i2NcQihe\n6Dlon+gzEsk0W2Hb6pzYKs5uqvqZinY3QjRc9k+nwv43xY3fI1CAAaWW/zyM5yFl\nU5hgeVGfObFfNju+H08TQkkCgYEA04E/2Q6ew+oa74BqfOpqcy9PTObI4txO5XC5\nagfH5mjuxFyUYbKpj3W0lzggvnnGHaB+oWJvYHpvSxPI6Xr4hbAMd0Vo6TzX1+n5\npgXijkR3GDRQXkkLDqOampmmlY6wpBzmHHFEQRij2cCTm1V1VJ0VDIxE1cjiWCnQ\ntRLLbF8CgYEAgooIVIg541P3s8aGfkJM1CAeBgWU1Dxuysv2+tLdCkKRFEuhnkLn\nA9TJzZE1HB+BXF1U3ShcPGZkYer86xp8iM2iDtrhxP20Q+5j974ivT2YchGWz/Hw\nURvLaQt+u/NC6T2/rZYVH9akrLQF8DOi4K70NKRKsQ7aOhAK8KNeF9ECgYBCuTyu\nOjmF7t3OfsGZZM5uRheLWCc5wmy1X0lvFMNQgfwJQHejFpz9YBG3vwI9dOc2Q4KP\nYSFn21gu5C/20E+ExVQ5cFE3e3VQbUTPxn2BikHUBfTwubReSuikKyLtfZVmQKOr\nh2QT8TUHpgQq9dvM9L1GNx4kH3qge5iW9zXrmwKBgQDmbkIrZnvz+PceGs2NPEve\nn2hxHNWNGjWmP2VhETz/+n4uxkkMXr9rQOE65TKmRGsfHreHTMGRf7KQ/JYZwndf\n6wI/irk0GbAN0Pvl4aT3jJfTMhPQj9Xa2Lhu7J7jpR7HDmgfznbAE8bsR3s0eXly\nEJcTQx/tLMYN1rSChQHw1g==\n-----END PRIVATE KEY-----\n",
-    "client_email": "firebase-adminsdk-fbsvc@dot-dev-16260.iam.gserviceaccount.com",
-    "client_id": "115252689335028868719",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40dot-dev-16260.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
-}
+const serviceAccount = require('./serviceAccountKey.json')
 
 if (!admin.apps.length) {
     admin.initializeApp({
