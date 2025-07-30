@@ -343,7 +343,6 @@ module.exports = {
     getOrderDetails,
     updateOrder,
     changeOrderStatus,
-    uploadFilesToOrder,
     addNewUser,
     blockUser
 };
