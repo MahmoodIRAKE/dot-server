@@ -166,14 +166,6 @@ const changeOrderStatus = async (req, res) => {
         const { orderId } = req.params;
         const { status } = req.body;
 
-        // Validate status
-        const validStatuses = ['new', 'waiting for approval', 'in progress', 'paymentR', 'DONE', 'delayed', 'declined'];
-        if (!status || !validStatuses.includes(status)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid status value. Must be one of: ' + validStatuses.join(', ')
-            });
-        }
 
         // Find and update the order
         const updatedOrder = await Order.findByIdAndUpdate(
