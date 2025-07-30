@@ -33,12 +33,12 @@ router.put('/orders/:orderId',
     updateOrder);
 
 
-router.post('/orders/:orderId/files',
+router.post('/orders/files',
     authMiddleware,
     authorizeRole("client"),
     saveImagesPath);
 
-router.put('/orders/:orderId/files',
+router.put('/orders/:userId',
     authMiddleware,
     authorizeRole("client"),
     orderConfirm
