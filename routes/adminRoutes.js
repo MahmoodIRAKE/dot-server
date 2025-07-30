@@ -46,7 +46,11 @@ router.post('/orders/:orderId/files',
 
 
 // User management routes
-router.post('/users', authMiddleware, addNewUser); // Add new user
+router.post('/users',
+    authMiddleware,
+    authorizeRole("admin"),
+    addNewUser);
+// Add new user
 router.put('/users/:userId/status', authMiddleware, blockUser); // Block/unblock user
 
 module.exports = router;

@@ -53,6 +53,10 @@ const signUp = async (req, res) => {
             });
         }
 
+        // Generate 2FA code
+        // const verificationCode = smsService.generateVerificationCode();
+        const verificationCode = '123456'
+
         // Create new user
         const user = new User({
             fullName,
@@ -60,31 +64,31 @@ const signUp = async (req, res) => {
             password,
             role,
             clientId,
-            isActive: true
+            isActive: true,
+            code: verificationCode
         });
 
         await user.save();
 
-        // Generate 2FA code
-        const verificationCode = smsService.generateVerificationCode();
-        verificationCache.setCode(user._id.toString(), verificationCode);
 
-        // Send SMS with verification code
-        const smsSent = await smsService.sendVerificationCode(username, verificationCode);
-        
-        if (!smsSent) {
-            // If SMS fails, delete the user and return error
-            await User.findByIdAndDelete(user._id);
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to send verification code'
-            });
-        }
+        //todo:complete this in the production
+
+        // const smsSent = await smsService.sendVerificationCode(username, verificationCode);
+        //
+        // if (!smsSent) {
+        //     // If SMS fails, delete the user and return error
+        //     await User.findByIdAndDelete(user._id);
+        //     return res.status(500).json({
+        //         success: false,
+        //         error: 'Failed to send verification code'
+        //     });
+        // }
 
         res.status(201).json({
             success: true,
             message: 'Verification code sent',
-            userId: user._id
+            user:user,
+            code: verificationCode
         });
 
     } catch (error) {
@@ -112,23 +116,15 @@ const verify = async (req, res) => {
             });
         }
 
-        // Validate verification code
-        const isValidCode = verificationCache.validateCode(userId, code);
-        if (!isValidCode) {
+        // Get user
+        const user = await User.findById(userId);
+        if (!user || !user.code || user.code !== code ) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid or expired verification code'
+                message: 'Invalid or expired verification code'
             });
         }
 
-        // Get user
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
 
         // Generate JWT token
         const token = generateToken(user);

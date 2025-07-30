@@ -303,13 +303,6 @@ const uploadFilesToOrder = async (req, res) => {
 // Add new user (Admin only)
 const addNewUser = async (req, res) => {
     try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
 
         const { username, fullName, password, role, clientId } = req.body;
 
@@ -318,15 +311,6 @@ const addNewUser = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: username, fullName, password, role, clientId'
-            });
-        }
-
-        // Validate role
-        const validRoles = ['client', 'admin'];
-        if (!validRoles.includes(role)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid role. Must be either "client" or "admin"'
             });
         }
 
@@ -345,7 +329,8 @@ const addNewUser = async (req, res) => {
             fullName,
             password,
             role,
-            clientId
+            clientId,
+            needToChangePassword:true
         });
 
         const savedUser = await newUser.save();
@@ -361,7 +346,7 @@ const addNewUser = async (req, res) => {
                 clientId: savedUser.clientId
             }
         });
-
+    //todo: send username and password to the client via sms / email
     } catch (error) {
         console.error('Error creating user:', error);
         res.status(500).json({
