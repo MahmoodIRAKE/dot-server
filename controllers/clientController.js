@@ -145,15 +145,7 @@ const updateOrder = async (req, res) => {
     }
 };
 
-const saveImagesPath = async (req, res )=>{
 
-    let fileData =req.body
-    const newFile = new Files.bulkSave(fileData)
-    res.status(200).json({
-        success: true,
-        message: 'paths saved  successfully',
-    });
-};
 const orderConfirm = async (req, res )=>{
 
     try{
@@ -217,6 +209,5 @@ module.exports = {
     getClientOrders,
     updateOrder,
     updateProfile,
-    saveImagesPath,
     orderConfirm
 };

@@ -1,18 +1,21 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-
 const fileUpload = require('express-fileupload');
-const cors = require('cors')
+const cors = require('cors');
 const path = require('path');
-const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const fs = require('fs').promises;
-const SCRIPT =require('./scripts/seedAdmin')
-// Load environment variables
+
+// Load environment variables at the very top
 dotenv.config();
+
+// Import Firebase Admin (already configured in config/firebase.js)
+require('./config/firebase'); // ensures Firebase is initialized
+const SCRIPT = require('./scripts/seedAdmin');
 
 const app = express();
 
+// Static files
 app.use('/views', express.static(path.join(__dirname, 'views')));
 
 // Middleware
@@ -23,7 +26,7 @@ app.use(fileUpload({
     useTempFiles: true,
     tempFileDir: './tempUploads/'
 }));
-app.use(cors({credentials: true, origin: true , maxAge: 86400 }))
+app.use(cors({ credentials: true, origin: true, maxAge: 86400 }));
 
 // MongoDB Connection
 mongoose
@@ -31,18 +34,17 @@ mongoose
         useNewUrlParser: true,
         useUnifiedTopology: true,
     })
-    .then(() => console.log('Connected to MongoDB'))
+    .then(() => console.log('🟢 Connected to MongoDB'))
     .catch((err) => {
-        console.error('Database connection failed:', err.message);
+        console.error('❌ Database connection failed:', err.message);
         process.exit(1);
     });
-
 
 // Routes
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/clients', require('./routes/clientRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
-
+app.use('/api/files', require('./routes/fileRoutes'));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -65,9 +67,11 @@ const startServer = async () => {
             useUnifiedTopology: true,
         });
         console.log('🟢 Connected to MongoDB');
-        // await SCRIPT.deleteDB
-        // await SCRIPT.seedAdmin()
-        // await SCRIPT.seedClient()
+
+        // Optionally run seed script ONCE (comment out later in production)
+        // await SCRIPT.seedAdmin();
+        // await SCRIPT.deleteDB()
+
         app.listen(PORT, () => {
             console.log(`🚀 Server running on http://localhost:${PORT}`);
         });

@@ -1,3 +1,7 @@
+
+# Firebase private key
+serviceAccountKey.json
+
 # Dependencies
 node_modules/
 npm-debug.log*

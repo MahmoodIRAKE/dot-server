@@ -4,7 +4,6 @@ const {
     getClientOrders,
     updateOrder,
     updateProfile,
-    saveImagesPath,
     orderConfirm
 
 } = require('../controllers/clientController');
@@ -32,11 +31,6 @@ router.put('/orders/:orderId',
     authorizeRole("client"),
     updateOrder);
 
-
-router.post('/orders/files',
-    authMiddleware,
-    authorizeRole("client"),
-    saveImagesPath);
 
 router.put('/orders/:userId',
     authMiddleware,
