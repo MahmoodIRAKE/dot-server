@@ -19,7 +19,8 @@ router.get('/orders',
 router.post('/orders',
     authMiddleware,
     authorizeRole("client"),
-    createOrder);
+    createOrder
+);
 
 // Update order
 router.put('/orders/:orderId',
