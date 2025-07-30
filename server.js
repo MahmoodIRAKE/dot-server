@@ -6,7 +6,6 @@ const fileUpload = require('express-fileupload');
 const cors = require('cors')
 const path = require('path');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
-const { storage } = require('./services/firebaseService');
 const fs = require('fs').promises;
 const SCRIPT =require('./scripts/seedAdmin')
 // Load environment variables

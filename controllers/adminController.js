@@ -2,7 +2,6 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const Files = require('../models/files');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
-const { storage } = require('../services/firebaseService');
 const admin = require("firebase-admin");
 
 // Get all orders (Admin only)
@@ -197,101 +196,6 @@ const changeOrderStatus = async (req, res) => {
 };
 
 // Upload files to order (Admin only)
-const uploadFilesToOrder = async (req, res) => {
-    try {
-        // Check if user has admin role
-        if (!['admin', 'superAdmin'].includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied. Admin privileges required.'
-            });
-        }
-
-        const { orderId } = req.params;
-        const { fileCategory, notes } = req.body;
-
-        // Validate file category
-        const validCategories = ['payment', 'work'];
-        if (!fileCategory || !validCategories.includes(fileCategory)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid file category. Must be either "payment" or "work"'
-            });
-        }
-
-        // Check if order exists
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                error: 'Order not found'
-            });
-        }
-
-        // Check if file was uploaded
-        if (!req.files || !req.files.file) {
-            return res.status(400).json({
-                success: false,
-                error: 'No file uploaded'
-            });
-        }
-
-        const uploadedFile = req.files.file;
-
-        // Validate file type (images and documents)
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-        if (!allowedTypes.includes(uploadedFile.mimetype)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid file type. Allowed types: JPEG, PNG, GIF, PDF, DOC, DOCX'
-            });
-        }
-
-        // Validate file size (10MB limit)
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (uploadedFile.size > maxSize) {
-            return res.status(400).json({
-                success: false,
-                error: 'File size too large. Maximum size is 10MB'
-            });
-        }
-
-        // Generate unique filename
-        const timestamp = Date.now();
-        const fileName = `${orderId}_${fileCategory}_${timestamp}_${uploadedFile.name}`;
-        const filePath = `orders/${orderId}/${fileName}`;
-
-        // Upload to Firebase Storage
-        const storageRef = ref(storage, filePath);
-        const snapshot = await uploadBytes(storageRef, uploadedFile.data);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-
-        // Save file record to database
-        const newFile = new Files({
-            userId: req.user.userId,
-            orderId: orderId,
-            customerFullName: order.customerFullName,
-            filePath: downloadURL,
-            fileCategory: fileCategory,
-            notes: notes || ''
-        });
-
-        const savedFile = await newFile.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'File uploaded successfully',
-            file: savedFile
-        });
-
-    } catch (error) {
-        console.error('Error uploading file:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error while uploading file'
-        });
-    }
-};
 
 // Add new user (Admin only)
 const addNewUser = async (req, res) => {
