@@ -4,7 +4,6 @@ const {
     getOrderDetails,
     updateOrder,
     changeOrderStatus,
-    uploadFilesToOrder,
     addNewUser,
     blockUser,
 } = require('../controllers/adminController');
@@ -38,12 +37,7 @@ router.patch('/orders/:orderId/status',
     authorizeRole("admin"),
     changeOrderStatus);
 
-// Upload files to order
-router.post('/orders/:orderId/files',
-    authMiddleware,
-    authorizeRole("admin"),
-    uploadFilesToOrder);
-
+// Upload files to orde
 // Add new user
 router.post('/users',
     authMiddleware,
