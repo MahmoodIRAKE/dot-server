@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Files = require('../models/files');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const { storage } = require('../services/firebaseService');
+const admin = require("firebase-admin");
 
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
@@ -304,7 +305,7 @@ const uploadFilesToOrder = async (req, res) => {
 const addNewUser = async (req, res) => {
     try {
 
-        const { username, fullName, password, role, clientId } = req.body;
+        const { username, fullName, password, role, clientId, phoneNumber } = req.body;
 
         // Validate required fields
         if (!username || !fullName || !password || !role || !clientId) {
@@ -322,19 +323,39 @@ const addNewUser = async (req, res) => {
                 error: 'Username already exists'
             });
         }
+        let  firebaseUser
 
+        try {
+
+            firebaseUser = await admin.auth().createUser({
+                email: `${phoneNumber}@dot.com`, // Create email from phone number
+                password: password,
+                displayName: fullName,
+                phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`, // Format for Firebase (assuming Israeli numbers)
+                disabled: false,
+
+            });
+        }catch (firebaseError) {
+            console.error("Firebase Auth Error:", firebaseError);
+            return res.status(400).json({
+                message: "Failed to create Firebase user",
+                error: firebaseError.message
+            });
+        }
         // Create new user
         const newUser = new User({
-            username,
             fullName,
+            username:`${phoneNumber}@dot.com` ,
             password,
-            role,
+            role: 'client',
             clientId,
-            needToChangePassword:true
+            isActive: true,
+            needToChangePassword: true,
+            firebaseUid: firebaseUser.uid // Store Firebase UID for future reference
         });
 
         const savedUser = await newUser.save();
-
+        //todo: sms
         res.status(201).json({
             success: true,
             message: 'User created successfully',

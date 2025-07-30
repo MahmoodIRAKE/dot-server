@@ -1,29 +1,43 @@
-const Admin = require('../models/User');
+const admin = require("../config/firebase");  // use the initialized instance
+
+const Admins = require('../models/User');
 const Client = require('../models/User');
+const Orders = require('../models/Order');
 
 const seedAdmin = async () => {
     try {
         console.log('🌱 Starting to seed admin user...');
 
         // Delete existing admin and recreate
-        await Admin.deleteOne({ username: 'admin' });
+        await Admins.deleteOne({ username: 'admin' });
         console.log('Deleted existing admin user');
 
-        // Create admin user with plain password (let pre-save hook hash it)
-        const admin = await Admin.create({
-            username: 'muslah.jaber@gmail.com',
+        let firebaseUser = await admin.auth().createUser({
+            email: `0506982222@dot.com`, // Create email from phone number
             password: 'admin123',
-            role: 'admin',
-            fullName: 'muslah'
-        });
-        const SuperAdmin = await Admin.create({
-            username: 'majd@gmail.com',
-            password: 'admin123',
-            role: 'superAdmin',
-            fullName: 'majd'
+            displayName: 'muslah jaber' ,
+            phoneNumber: `+972506982222`, // Format for Firebase (assuming Israeli numbers)
+            disabled: false,
 
         });
-        // Test password comparison
+        // Create admin user with plain password (let pre-save hook hash it)
+        const admins = await Admins.create({
+            username: 'muslah.jaber@gmail.com',
+            password: 'admin123',
+            phoneNumber: '0506982222',
+            role: 'admin',
+            fullName: 'muslah',
+            needToChangePassword: false,
+            firebaseUid: firebaseUser.uid
+        });
+        //
+        // const SuperAdmin = await Admin.create({
+        //     username: 'majd@gmail.com',
+        //     password: 'admin123',
+        //     role: 'superAdmin',
+        //     fullName: 'majd'
+        //
+        // });
     } catch (error) {
         console.error('❌ Error seeding admin user:', error);
         throw error;
@@ -45,7 +59,18 @@ const seedClient = async () => {
         throw error;
     }
 };
+const deleteDB = async () => {
+    try {
+        await Client.deleteMany({})
+        await Admin.deleteMany({})
+        await Orders.deleteMany({})
+    } catch (error) {
+        console.error('❌ Error seeding  user:', error);
+        throw error;
+    }
+};
 module.exports={
     seedAdmin,
+    deleteDB,
     seedClient
 }

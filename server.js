@@ -66,7 +66,7 @@ const startServer = async () => {
             useUnifiedTopology: true,
         });
         console.log('🟢 Connected to MongoDB');
-
+        // await SCRIPT.deleteDB
         // await SCRIPT.seedAdmin()
         // await SCRIPT.seedClient()
         app.listen(PORT, () => {

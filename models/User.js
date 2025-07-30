@@ -40,7 +40,14 @@ const Users = new mongoose.Schema({
     needToChangePassword: {
         type: Boolean,
         default: false
+    },
+    firebaseUid: {
+        type: String,
+        unique: true,
+        sparse: true
     }
+    , // Optional field for Firebase Auth UID
+
 }, {
     timestamps: true
 });

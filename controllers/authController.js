@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const smsService = require('../services/smsService');
 const verificationCache = require('../services/verificationCache');
+const admin = require("firebase-admin");
 
 /**
  * Generate JWT token
@@ -25,27 +26,18 @@ const generateToken = (user) => {
  * POST /api/auth/signUp
  */
 const signUp = async (req, res) => {
+    let user
     try {
-        const { fullName, username, password, role, clientId } = req.body;
+        const { fullName, password, clientId, phoneNumber } = req.body;
 
         // Validate required fields
-        if (!fullName || !username || !password || !role || !clientId) {
+        if (!fullName || !phoneNumber || !password  || !clientId) {
             return res.status(400).json({
                 success: false,
                 error: 'All fields are required'
             });
         }
-
-        // Validate role
-        if (role !== 'client') {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid role. Only client registration is allowed'
-            });
-        }
-
-        // Check if username (phone) already exists
-        const existingUser = await User.findOne({ username });
+        const existingUser = await User.findOne({ phoneNumber });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -58,18 +50,53 @@ const signUp = async (req, res) => {
         const verificationCode = '123456'
 
         // Create new user
-        const user = new User({
-            fullName,
-            username,
-            password,
-            role,
-            clientId,
-            isActive: true,
-            code: verificationCode
-        });
 
-        await user.save();
+        let  firebaseUser
 
+        try {
+
+            firebaseUser = await admin.auth().createUser({
+                email: `${phoneNumber}@dot.com`, // Create email from phone number
+                password: password,
+                displayName: fullName,
+                phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`, // Format for Firebase (assuming Israeli numbers)
+                disabled: false,
+
+            });
+        }catch (firebaseError) {
+            console.error("Firebase Auth Error:", firebaseError);
+            return res.status(400).json({
+                message: "Failed to create Firebase user",
+                error: firebaseError.message
+            });
+        }try {
+
+            user = new User({
+                fullName,
+                username:`${phoneNumber}@dot.com` ,
+                password,
+                role: 'client',
+                clientId,
+                isActive: true,
+                code: verificationCode,
+                firebaseUid: firebaseUser.uid // Store Firebase UID for future reference
+
+            });
+            await user.save();
+
+        } catch (dbError) {
+            // If database creation fails, clean up Firebase user
+            try {
+                await admin.auth().deleteUser(firebaseUser.uid);
+            } catch (cleanupError) {
+                console.error("Failed to cleanup Firebase user:", cleanupError);
+            }
+            console.error("Database Error:", dbError);
+            return res.status(400).json({
+                message: "Failed to create user in database",
+                error: dbError.message
+            });
+        }
 
         //todo:complete this in the production
 
@@ -87,7 +114,8 @@ const signUp = async (req, res) => {
         res.status(201).json({
             success: true,
             message: 'Verification code sent',
-            user:user,
+            phoneNumber:phoneNumber,
+            userId: user._id ,
             code: verificationCode
         });
 
@@ -105,10 +133,12 @@ const signUp = async (req, res) => {
  * POST /api/auth/verify
  */
 const verify = async (req, res) => {
+    const { userId, code } = req.body;
+    let user
     try {
-        const { userId, code } = req.body;
 
-        // Validate required fields
+        user = await User.findById(userId);
+
         if (!userId || !code) {
             return res.status(400).json({
                 success: false,
@@ -116,17 +146,14 @@ const verify = async (req, res) => {
             });
         }
 
-        // Get user
-        const user = await User.findById(userId);
-        if (!user || !user.code || user.code !== code ) {
+
+        if (!user || !user.code || user.code !== code) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired verification code'
             });
-        }
+            }
 
-
-        // Generate JWT token
         const token = generateToken(user);
 
         res.json({
@@ -143,6 +170,7 @@ const verify = async (req, res) => {
         });
 
     } catch (error) {
+        await admin.auth().deleteUser(user.uid);
         console.error('Verification error:', error);
         res.status(500).json({
             success: false,
@@ -157,10 +185,10 @@ const verify = async (req, res) => {
  */
 const signIn = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { phoneNumber, password } = req.body;
 
         // Validate required fields
-        if (!username || !password) {
+        if (!phoneNumber || !password) {
             return res.status(400).json({
                 success: false,
                 error: 'Username and password are required'
@@ -168,7 +196,7 @@ const signIn = async (req, res) => {
         }
 
         // Find user by username (phone number)
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ phoneNumber });
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -204,6 +232,7 @@ const signIn = async (req, res) => {
                 _id: user._id,
                 fullName: user.fullName,
                 username: user.username,
+                phoneNumber: user.phoneNumber,
                 role: user.role,
                 clientId: user.clientId
             }

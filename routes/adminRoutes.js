@@ -42,15 +42,17 @@ router.patch('/orders/:orderId/status',
 router.post('/orders/:orderId/files',
     authMiddleware,
     authorizeRole("admin"),
-    uploadFilesToOrder); // Upload files to order
+    uploadFilesToOrder);
 
-
-// User management routes
+// Add new user
 router.post('/users',
     authMiddleware,
     authorizeRole("admin"),
     addNewUser);
-// Add new user
-router.put('/users/:userId/status', authMiddleware, blockUser); // Block/unblock user
+
+// Block/unblock user
+router.put('/users/:userId/status',
+    authMiddleware,
+    blockUser);
 
 module.exports = router;
