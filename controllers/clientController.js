@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Files = require("../models/files");
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
@@ -172,6 +173,14 @@ const updateOrder = async (req, res) => {
     }
 };
 
+const saveImagesPath = async (req, res )=>{
+
+    let fileData =req.body
+    const newFile = new Files.bulkSave(fileData)
+    res.status(200).json({
+        success: true,
+        message: 'paths saved  successfully',
+    });}
 // Update client profile
 const updateProfile = async (req, res) => {
     try {
@@ -217,5 +226,6 @@ module.exports = {
     createOrder,
     getClientOrders,
     updateOrder,
-    updateProfile
+    updateProfile,
+    saveImagesPath
 };

@@ -4,9 +4,11 @@ const {
     getClientOrders,
     updateOrder,
     updateProfile,
+    saveImagesPath
 } = require('../controllers/clientController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
+const {uploadFilesToOrder} = require("../controllers/adminController");
 
 const router = express.Router();
 
@@ -27,6 +29,12 @@ router.put('/orders/:orderId',
     authMiddleware,
     authorizeRole("client"),
     updateOrder);
+
+
+router.post('/orders/:orderId/files',
+    authMiddleware,
+    authorizeRole("client"),
+    saveImagesPath);
 
 // Profile routes for clients
 router.put('/users/:userId',
