@@ -168,12 +168,12 @@ const updateProfile = async (req, res) => {
     try {
 
 
-        const { fullName, username } = req.body;
+        const { fullName, phoneNumber,clientId } = req.body;
 
         // Update user profile
         const updatedUser = await User.findByIdAndUpdate(
             req.user.userId,
-            { fullName, username },
+            { fullName, phoneNumber,clientId },
             { new: true, runValidators: true }
         );
 
@@ -191,7 +191,9 @@ const updateProfile = async (req, res) => {
                 userId: updatedUser._id,
                 username: updatedUser.username,
                 fullName: updatedUser.fullName,
-                role: updatedUser.role
+                role: updatedUser.role,
+                phoneNumber: updatedUser.phoneNumber,
+                clientId: updatedUser.clientId
             }
         });
 

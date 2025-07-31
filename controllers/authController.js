@@ -76,6 +76,7 @@ const signUp = async (req, res) => {
                 username:`${phoneNumber}@dot.com` ,
                 password,
                 role: 'client',
+                phoneNumber,
                 clientId,
                 isActive: true,
                 code: verificationCode,
@@ -237,7 +238,9 @@ const signIn = async (req, res) => {
                 phoneNumber: user.phoneNumber,
                 role: user.role,
                 clientId: user.clientId,
-                firebaseUid: user.firebaseUid
+                firebaseUid: user.firebaseUid,
+                isActive: user.isActive,
+                needToChangePassword: user.needToChangePassword
             }
         });
 
@@ -309,10 +312,10 @@ const forgotPassword = async (req, res) => {
  */
 const resetPassword = async (req, res) => {
     try {
-        const { username, code, newPassword } = req.body;
+        const { username, code, newPassword,phoneNumber } = req.body;
 
         // Validate required fields
-        if (!username || !code || !newPassword) {
+        if ( !code || !newPassword || !phoneNumber) {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number, code, and new password are required'
@@ -320,7 +323,7 @@ const resetPassword = async (req, res) => {
         }
 
         // Find user by username (phone number)
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ phoneNumber });
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -339,6 +342,7 @@ const resetPassword = async (req, res) => {
 
         // Update password
         user.password = newPassword;
+        user.needToChangePassword = false;
         await user.save();
 
         res.json({

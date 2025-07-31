@@ -225,7 +225,7 @@ const addNewUser = async (req, res) => {
 
             firebaseUser = await admin.auth().createUser({
                 email: `${phoneNumber}@dot.com`, // Create email from phone number
-                password: password,
+                password: "123456aA!",
                 displayName: fullName,
                 phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`, // Format for Firebase (assuming Israeli numbers)
                 disabled: false,
@@ -247,6 +247,8 @@ const addNewUser = async (req, res) => {
             clientId,
             isActive: true,
             needToChangePassword: true,
+            code: "123456",
+            phoneNumber,
             firebaseUid: firebaseUser.uid // Store Firebase UID for future reference
         });
 
@@ -338,11 +340,28 @@ const blockUser = async (req, res) => {
     }
 };
 
+const getAllUsers   = async (req, res) => {
+    try {
+        const users = await User.find();
+        res.status(200).json({
+            success: true,
+            users: users
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while fetching users'
+        });
+    }
+}
+
 module.exports = {
     getAllOrders,
     getOrderDetails,
     updateOrder,
     changeOrderStatus,
     addNewUser,
-    blockUser
+    blockUser,
+    getAllUsers
 };

@@ -6,6 +6,7 @@ const {
     changeOrderStatus,
     addNewUser,
     blockUser,
+    getAllUsers
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
@@ -19,6 +20,11 @@ router.get('/orders',
     authMiddleware,
     authorizeRole("admin"),
     getAllOrders);
+
+router.get('/users',
+    authMiddleware,
+    authorizeRole("admin"),
+    getAllUsers);
 
 router.get('/orders/:orderId',
     authMiddleware,
