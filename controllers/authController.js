@@ -193,16 +193,16 @@ const verify = async (req, res) => {
     }
 };
 const verifyForget = async (req, res) => {
-    const { phoneNumber, code } = req.body;
+    const { phoneNumber, code, newPassword } = req.body;
     let user
     try {
 
         user = await User.findById(phoneNumber);
 
-        if (!phoneNumber || !code) {
+        if (!phoneNumber || !code || !newPassword) {
             return res.status(400).json({
                 success: false,
-                error: 'User ID and verification code are required'
+                error: 'Phone number, code, and new password are required'
             });
         }
 
@@ -214,8 +214,13 @@ const verifyForget = async (req, res) => {
             });
             }
 
-        // const token = generateToken(user);
-        const token = generateForgetToken(user);
+
+        // Update password
+        user.password = newPassword;
+        user.needToChangePassword = false;
+        await user.save();
+
+        const token = generateToken(user);
 
         res.json({
             success: true,
@@ -224,6 +229,11 @@ const verifyForget = async (req, res) => {
             user: {
                 _id: user._id,
                 fullName: user.fullName,
+                username: user.username,
+                role: user.role,
+                clientId: user.clientId,
+                firebaseUid: user.firebaseUid
+
             }
         });
 
@@ -369,23 +379,24 @@ const forgotPassword = async (req, res) => {
  * POST /api/auth/reset-password
  */
 const resetPassword = async (req, res) => {
+    const { phoneNumber, code, newPassword } = req.body;
+    let user
     try {
-        const { userId, newPassword,phoneNumber } = req.body;
 
-        // Validate required fields
-        if (  !newPassword || !phoneNumber) {
+        user = await User.findById(phoneNumber);
+
+        if (!phoneNumber || !code || !newPassword) {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number, code, and new password are required'
             });
         }
 
-        // Find user by username (phone number)
-        let user = await User.findOne({ phoneNumber });
-        if (!user) {
-            return res.status(404).json({
+
+        if (!user || !user.code || user.code !== code) {
+            return res.status(400).json({
                 success: false,
-                error: 'Phone number not found'
+                message: 'Invalid or expired verification code'
             });
         }
 
@@ -412,13 +423,9 @@ const resetPassword = async (req, res) => {
             }
         });
 
-        res.json({
-            success: true,
-            message: 'Password reset successful'
-        });
-
     } catch (error) {
-        console.error('Reset password error:', error);
+        await admin.auth().deleteUser(user.uid);
+        console.error('Verification error:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'
