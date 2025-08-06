@@ -339,7 +339,7 @@ const forgotPassword = async (req, res) => {
 
         // Send SMS with reset code
         const smsSent = await smsService.sendVerificationCode(phoneNumber, resetCode);
-        
+        let userUpdated = await User.findByIdAndUpdate({_id: user._id},{code:resetCode})
         if (!smsSent) {
             return res.status(500).json({
                 success: false,
@@ -348,6 +348,9 @@ const forgotPassword = async (req, res) => {
         }
 
         res.json({
+            phoneNumber:phoneNumber,
+            userId: user._id ,
+            code: resetCode,
             success: true,
             message: 'Reset code sent to your phone'
         });
