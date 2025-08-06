@@ -3,10 +3,10 @@ const {
     createOrder,
     getClientOrders,
     updateOrder,
-    updateProfile,
-    orderConfirm
-
+    updateProfile,  
+    orderConfirm,
 } = require('../controllers/clientController');
+const {changeOrderStatus} = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
 const {uploadFilesToOrder} = require("../controllers/adminController");
@@ -43,4 +43,13 @@ router.put('/users/:userId',
     authMiddleware,
     authorizeRole("client"),
     updateProfile);
+
+
+
+router.patch('/orders/:orderId/status',
+    authMiddleware,
+    authorizeRole("client"),
+    changeOrderStatus);
+
+
 module.exports = router;
