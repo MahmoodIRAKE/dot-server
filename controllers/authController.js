@@ -314,8 +314,8 @@ const signIn = async (req, res) => {
  */
 const forgotPassword = async (req, res) => {
     try {
-        let phoneNumber=req.body
-
+        let {phoneNumber}=req.body
+         console.log(phoneNumber)
         // Validate required fields
         if (!phoneNumber) {
             return res.status(400).json({
@@ -338,14 +338,14 @@ const forgotPassword = async (req, res) => {
         const resetCode = '123456';
 
         // Send SMS with reset code
-        const smsSent = await smsService.sendVerificationCode(phoneNumber, resetCode);
+        // const smsSent = await smsService.sendVerificationCode(phoneNumber, resetCode);
         let userUpdated = await User.findByIdAndUpdate({_id: user._id},{code:resetCode})
-        if (!smsSent) {
-            return res.status(500).json({
-                success: false,
-                error: 'Failed to send reset code'
-            });
-        }
+        // if (!smsSent) {
+        //     return res.status(500).json({
+        //         success: false,
+        //         error: 'Failed to send reset code'
+        //     });
+        // }
 
         res.json({
             phoneNumber:phoneNumber,
