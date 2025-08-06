@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const smsService = require('../services/smsService');
 const verificationCache = require('../services/verificationCache');
-const admin = require("firebase-admin");
+const admin = require("../config/firebase");  // ✅ not "firebase-admin"
 
 /**
  * Generate JWT token
@@ -17,6 +17,17 @@ const generateToken = (user) => {
             role: user.role 
         },
         process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+    );
+};
+const generateForgetToken = (user) => {
+    return jwt.sign(
+        {
+            userId: user._id,
+            username: user.username,
+            role: user.role
+        },
+        process.env.JWT_SECRET + 5,
         { expiresIn: '7d' }
     );
 };
@@ -181,6 +192,50 @@ const verify = async (req, res) => {
         });
     }
 };
+const verifyForget = async (req, res) => {
+    const { phoneNumber, code } = req.body;
+    let user
+    try {
+
+        user = await User.findById(phoneNumber);
+
+        if (!phoneNumber || !code) {
+            return res.status(400).json({
+                success: false,
+                error: 'User ID and verification code are required'
+            });
+        }
+
+
+        if (!user || !user.code || user.code !== code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification code'
+            });
+            }
+
+        // const token = generateToken(user);
+        const token = generateForgetToken(user);
+
+        res.json({
+            success: true,
+            message: 'Verification successful',
+            token,
+            user: {
+                _id: user._id,
+                fullName: user.fullName,
+            }
+        });
+
+    } catch (error) {
+        await admin.auth().deleteUser(user.uid);
+        console.error('Verification error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+};
 
 /**
  * Sign-In Flow
@@ -259,10 +314,10 @@ const signIn = async (req, res) => {
  */
 const forgotPassword = async (req, res) => {
     try {
-        const { username } = req.body;
+        let phoneNumber=req.body
 
         // Validate required fields
-        if (!username) {
+        if (!phoneNumber) {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number is required'
@@ -270,7 +325,7 @@ const forgotPassword = async (req, res) => {
         }
 
         // Find user by username (phone number)
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ phoneNumber });
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -279,11 +334,11 @@ const forgotPassword = async (req, res) => {
         }
 
         // Generate reset code
-        const resetCode = smsService.generateVerificationCode();
-        verificationCache.setCode(user._id.toString(), resetCode);
+        // const resetCode = smsService.generateVerificationCode();
+        const resetCode = '123456';
 
         // Send SMS with reset code
-        const smsSent = await smsService.sendVerificationCode(username, resetCode);
+        const smsSent = await smsService.sendVerificationCode(phoneNumber, resetCode);
         
         if (!smsSent) {
             return res.status(500).json({
@@ -312,10 +367,10 @@ const forgotPassword = async (req, res) => {
  */
 const resetPassword = async (req, res) => {
     try {
-        const { username, code, newPassword,phoneNumber } = req.body;
+        const { userId, newPassword,phoneNumber } = req.body;
 
         // Validate required fields
-        if ( !code || !newPassword || !phoneNumber) {
+        if (  !newPassword || !phoneNumber) {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number, code, and new password are required'
@@ -323,7 +378,7 @@ const resetPassword = async (req, res) => {
         }
 
         // Find user by username (phone number)
-        const user = await User.findOne({ phoneNumber });
+        let user = await User.findOne({ phoneNumber });
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -331,19 +386,28 @@ const resetPassword = async (req, res) => {
             });
         }
 
-        // Validate reset code
-        const isValidCode = verificationCache.validateCode(user._id.toString(), code);
-        if (!isValidCode) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid or expired reset code'
-            });
-        }
 
         // Update password
         user.password = newPassword;
         user.needToChangePassword = false;
         await user.save();
+
+        const token = generateToken(user);
+
+        res.json({
+            success: true,
+            message: 'Verification successful',
+            token,
+            user: {
+                _id: user._id,
+                fullName: user.fullName,
+                username: user.username,
+                role: user.role,
+                clientId: user.clientId,
+                firebaseUid: user.firebaseUid
+
+            }
+        });
 
         res.json({
             success: true,
@@ -364,5 +428,6 @@ module.exports = {
     signIn,
     verify,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    verifyForget
 };

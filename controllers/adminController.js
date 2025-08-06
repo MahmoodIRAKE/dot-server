@@ -242,7 +242,7 @@ const addNewUser = async (req, res) => {
         const newUser = new User({
             fullName,
             username:`${phoneNumber}@dot.com` ,
-            password,
+            password:'123456aA!',
             role: 'client',
             clientId,
             isActive: true,

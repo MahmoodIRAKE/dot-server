@@ -61,8 +61,8 @@ const seedClient = async () => {
 };
 const deleteDB = async () => {
     try {
-        await Client.deleteMany({})
-        await Admins.deleteMany({})
+        await Client.deleteMany({role:'client'})
+        // await Admins.deleteMany({})
         await Orders.deleteMany({})
     } catch (error) {
         console.error('❌ Error seeding  user:', error);
