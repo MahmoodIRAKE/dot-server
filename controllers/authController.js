@@ -383,7 +383,7 @@ const resetPassword = async (req, res) => {
     let user
     try {
 
-        user = await User.findById(phoneNumber);
+        user = await User.findOne({phoneNumber});
 
         if (!phoneNumber || !code || !newPassword) {
             return res.status(400).json({
@@ -424,7 +424,7 @@ const resetPassword = async (req, res) => {
         });
 
     } catch (error) {
-        await admin.auth().deleteUser(user.uid);
+        // await admin.auth().deleteUser(user.uid);
         console.error('Verification error:', error);
         res.status(500).json({
             success: false,
