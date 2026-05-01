@@ -6,7 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs').promises;
 
-// Load environment variables at the very top
+
 dotenv.config();
 
 // Import Firebase Admin (already configured in config/firebase.js)
