@@ -9,22 +9,22 @@ const seedAdmin = async () => {
         console.log('🌱 Starting to seed admin user...');
 
         // Delete existing admin and recreate
-        await Admins.deleteOne({ username: 'admin' });
-        console.log('Deleted existing admin user');
+        // await Admins.deleteOne({ username: 'admin' });
+        // console.log('Deleted existing admin user');
 
         let firebaseUser = await admin.auth().createUser({
-            email: `0506982222@dot.com`, // Create email from phone number
+            email: `0503952222@dot.com`, // Create email from phone number
             password: 'admin123',
             displayName: 'muslah jaber' ,
-            phoneNumber: `+972506982222`, // Format for Firebase (assuming Israeli numbers)
+            phoneNumber: `+972503952222`, // Format for Firebase (assuming Israeli numbers)
             disabled: false,
 
         });
         // Create admin user with plain password (let pre-save hook hash it)
         const admins = await Admins.create({
-            username: 'muslah.jaber@gmail.com',
+            username: 'muslah.jaber1@gmail.com',
             password: 'admin123',
-            phoneNumber: '0506982222',
+            phoneNumber: '0503952222',
             role: 'admin',
             fullName: 'muslah',
             needToChangePassword: false,
