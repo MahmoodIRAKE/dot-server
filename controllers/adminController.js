@@ -1,8 +1,11 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Files = require('../models/files');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require("firebase-admin");
+
+const workerPopulateFields = 'username fullName phoneNumber role';
 
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
@@ -11,6 +14,7 @@ const getAllOrders = async (req, res) => {
         // Get all orders with user information
         const orders = await Order.find()
             .populate('userID', 'username fullName clientId')
+            .populate('assignedWorkerId', workerPopulateFields)
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -34,7 +38,8 @@ const getOrderDetails = async (req, res) => {
 
         // Find order with user information
         const order = await Order.findById(orderId)
-            .populate('userID', 'username fullName clientId');
+            .populate('userID', 'username fullName clientId')
+            .populate('assignedWorkerId', workerPopulateFields);
 
         if (!order) {
             return res.status(404).json({
@@ -141,7 +146,8 @@ const updateOrder = async (req, res) => {
             orderId,
             updateData,
             { new: true, runValidators: true }
-        ).populate('userID', 'username fullName clientId');
+        ).populate('userID', 'username fullName clientId')
+            .populate('assignedWorkerId', workerPopulateFields);
 
         res.status(200).json({
             success: true,
@@ -171,7 +177,8 @@ const changeOrderStatus = async (req, res) => {
             orderId,
             { status: status },
             { new: true, runValidators: true }
-        ).populate('userID', 'username fullName clientId');
+        ).populate('userID', 'username fullName clientId')
+            .populate('assignedWorkerId', workerPopulateFields);
 
         if (!updatedOrder) {
             return res.status(404).json({
@@ -275,6 +282,150 @@ const addNewUser = async (req, res) => {
     }
 };
 
+// Create worker user only (Admin) — separate from addNewUser (clients)
+const createNewWorker = async (req, res) => {
+    let firebaseUser;
+    try {
+        const { fullName, phoneNumber, password } = req.body;
+
+        if (!fullName || !phoneNumber || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: fullName, phoneNumber, password'
+            });
+        }
+
+        const username = `${phoneNumber}@dot.com`;
+        const existingUser = await User.findOne({ $or: [{ username }, { phoneNumber }] });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                error: 'User with this phone number or username already exists'
+            });
+        }
+
+        try {
+            firebaseUser = await admin.auth().createUser({
+                email: username,
+                password,
+                displayName: fullName,
+                phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`,
+                disabled: false
+            });
+        } catch (firebaseError) {
+            console.error('Firebase Auth Error:', firebaseError);
+            return res.status(400).json({
+                message: 'Failed to create Firebase user',
+                error: firebaseError.message
+            });
+        }
+
+        const newUser = new User({
+            fullName,
+            username,
+            password:'123456aA!',
+            role: 'worker',
+            isActive: true,
+            needToChangePassword: true,
+            code: '123456',
+            phoneNumber,
+            firebaseUid: firebaseUser.uid
+        });
+
+        const savedUser = await newUser.save();
+        res.status(201).json({
+            success: true,
+            message: 'Worker created successfully',
+            user: {
+                userId: savedUser._id,
+                username: savedUser.username,
+                fullName: savedUser.fullName,
+                role: savedUser.role,
+                phoneNumber: savedUser.phoneNumber
+            }
+        });
+    } catch (error) {
+        if (firebaseUser && firebaseUser.uid) {
+            try {
+                await admin.auth().deleteUser(firebaseUser.uid);
+            } catch (cleanupError) {
+                console.error('Failed to cleanup Firebase user:', cleanupError);
+            }
+        }
+        console.error('Error creating worker:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while creating worker'
+        });
+    }
+};
+
+// Assign or unassign worker on an order (Admin). Body: { workerId } — null/empty to unassign
+const assignOrderToWorker = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { workerId } = req.body;
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        if (workerId === undefined || workerId === null || workerId === '') {
+            const updated = await Order.findByIdAndUpdate(
+                orderId,
+                { assignedWorkerId: null },
+                { new: true }
+            )
+                .populate('userID', 'username fullName clientId')
+                .populate('assignedWorkerId', workerPopulateFields);
+            return res.status(200).json({
+                success: true,
+                message: 'Worker unassigned from order',
+                order: updated
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(workerId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid workerId'
+            });
+        }
+
+        const worker = await User.findById(workerId);
+        if (!worker || worker.role !== 'worker') {
+            return res.status(400).json({
+                success: false,
+                error: 'workerId must reference an existing user with role worker'
+            });
+        }
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            { assignedWorkerId: worker._id },
+            { new: true, runValidators: true }
+        )
+            .populate('userID', 'username fullName clientId')
+            .populate('assignedWorkerId', workerPopulateFields);
+
+        res.status(200).json({
+            success: true,
+            message: 'Order assigned to worker successfully',
+            order: updatedOrder
+        });
+    } catch (error) {
+        console.error('Error assigning order to worker:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while assigning order'
+        });
+    }
+};
+
 // Block/Unblock user (Admin only)
 const blockUser = async (req, res) => {
     try {
@@ -362,6 +513,8 @@ module.exports = {
     updateOrder,
     changeOrderStatus,
     addNewUser,
+    createNewWorker,
+    assignOrderToWorker,
     blockUser,
     getAllUsers
 };

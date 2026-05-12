@@ -5,6 +5,8 @@ const {
     updateOrder,
     changeOrderStatus,
     addNewUser,
+    createNewWorker,
+    assignOrderToWorker,
     blockUser,
     getAllUsers
 } = require('../controllers/adminController');
@@ -43,12 +45,22 @@ router.patch('/orders/:orderId/status',
     authorizeRole("admin"),
     changeOrderStatus);
 
+router.patch('/orders/:orderId/worker',
+    authMiddleware,
+    authorizeRole("admin"),
+    assignOrderToWorker);
+
 // Upload files to orde
-// Add new user
+// Add new user (client)
 router.post('/users',
     authMiddleware,
     authorizeRole("admin"),
     addNewUser);
+
+router.post('/createNewWorker',
+    authMiddleware,
+    authorizeRole("admin"),
+    createNewWorker);
 
 // Block/unblock user
 router.put('/users/:userId/status',

@@ -42,6 +42,7 @@ mongoose
 
 // Routes
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/workers', require('./routes/workerRoutes'));
 app.use('/api/clients', require('./routes/clientRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/files', require('./routes/fileRoutes'));
