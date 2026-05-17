@@ -3,8 +3,10 @@ const {
     createOrder,
     getClientOrders,
     updateOrder,
-    updateProfile,  
+    updateProfile,
     orderConfirm,
+    getOrganizationUsers,
+    addOrganizationUser
 } = require('../controllers/clientController');
 const {changeOrderStatus} = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -37,6 +39,17 @@ router.put('/orders/:userId',
     authorizeRole("client"),
     orderConfirm
 );
+
+// Organization members (any client in the org)
+router.get('/users',
+    authMiddleware,
+    authorizeRole('client'),
+    getOrganizationUsers);
+
+router.post('/users',
+    authMiddleware,
+    authorizeRole('client'),
+    addOrganizationUser);
 
 // Profile routes for clients
 router.put('/users/:userId',

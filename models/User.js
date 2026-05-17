@@ -24,9 +24,14 @@ const Users = new mongoose.Schema({
         enum: ['client', 'admin', 'superAdmin', 'worker'],
         required: true
     },
-    clientId:{
+    organizationCode: {
         type: String,
         required: false,
+    },
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organizations',
+        required: false
     },
     isActive: {
         type: Boolean,

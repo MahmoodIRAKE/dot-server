@@ -11,7 +11,7 @@ const testUser = {
     username: '0501234567',
     password: '123456',
     role: 'client',
-    clientId: '33333'
+    organizationCode: '33333'
 };
 
 async function testAuth() {

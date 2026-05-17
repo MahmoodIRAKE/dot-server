@@ -8,7 +8,10 @@ const {
     createNewWorker,
     assignOrderToWorker,
     blockUser,
-    getAllUsers
+    getAllUsers,
+    createOrganization,
+    getAllOrganizations,
+    getOrganizationById
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
@@ -27,6 +30,21 @@ router.get('/users',
     authMiddleware,
     authorizeRole("admin"),
     getAllUsers);
+
+router.post('/organizations',
+    authMiddleware,
+    authorizeRole("admin"),
+    createOrganization);
+
+router.get('/organizations',
+    authMiddleware,
+    authorizeRole("admin"),
+    getAllOrganizations);
+
+router.get('/organizations/:organizationId',
+    authMiddleware,
+    authorizeRole("admin"),
+    getOrganizationById);
 
 router.get('/orders/:orderId',
     authMiddleware,

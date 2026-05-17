@@ -1,11 +1,34 @@
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const Files = require('../models/files');
+const { organizationCodeFromBody } = require('../utils/organizationCodeFromBody');
+const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require("firebase-admin");
 
 const workerPopulateFields = 'username fullName phoneNumber role';
+const clientUserPopulateFields = 'username fullName organizationCode phoneNumber organizationId';
+const organizationPopulateFields = 'name organizationCode isActive';
+
+async function resolveOrganization({ organizationId, organizationCode }) {
+    const code = organizationCode;
+    if (organizationId) {
+        if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+            return { error: 'Invalid organizationId' };
+        }
+        const org = await Organization.findById(organizationId);
+        if (!org) return { error: 'Organization not found' };
+        return { organization: org };
+    }
+    if (code) {
+        const org = await Organization.findOne({ organizationCode: code });
+        if (!org) return { error: 'Organization not found for this organizationCode' };
+        return { organization: org };
+    }
+    return { error: 'organizationId or organizationCode is required' };
+}
 
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
@@ -13,7 +36,8 @@ const getAllOrders = async (req, res) => {
 
         // Get all orders with user information
         const orders = await Order.find()
-            .populate('userID', 'username fullName clientId')
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields)
             .sort({ createdAt: -1 });
 
@@ -38,7 +62,8 @@ const getOrderDetails = async (req, res) => {
 
         // Find order with user information
         const order = await Order.findById(orderId)
-            .populate('userID', 'username fullName clientId')
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
 
         if (!order) {
@@ -146,7 +171,8 @@ const updateOrder = async (req, res) => {
             orderId,
             updateData,
             { new: true, runValidators: true }
-        ).populate('userID', 'username fullName clientId')
+        ).populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
 
         res.status(200).json({
@@ -177,7 +203,8 @@ const changeOrderStatus = async (req, res) => {
             orderId,
             { status: status },
             { new: true, runValidators: true }
-        ).populate('userID', 'username fullName clientId')
+        ).populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
 
         if (!updatedOrder) {
@@ -204,75 +231,48 @@ const changeOrderStatus = async (req, res) => {
 
 // Upload files to order (Admin only)
 
-// Add new user (Admin only)
+// Add new client user to an organization (Admin only)
 const addNewUser = async (req, res) => {
     try {
+        const { fullName, password, phoneNumber, organizationId } = req.body;
+        const organizationCode = organizationCodeFromBody(req.body);
 
-        const { username, fullName, password, role, clientId, phoneNumber } = req.body;
-
-        // Validate required fields
-        if (!username || !fullName || !password || !role || !clientId) {
+        if (!fullName || !phoneNumber || (!organizationCode && !organizationId)) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: username, fullName, password, role, clientId'
+                error: 'Missing required fields: fullName, phoneNumber, and organizationId or organizationCode'
             });
         }
 
-        // Check if username already exists
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                error: 'Username already exists'
-            });
-        }
-        let  firebaseUser
-
-        try {
-
-            firebaseUser = await admin.auth().createUser({
-                email: `${phoneNumber}@dot.com`, // Create email from phone number
-                password: "123456aA!",
-                displayName: fullName,
-                phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`, // Format for Firebase (assuming Israeli numbers)
-                disabled: false,
-
-            });
-        }catch (firebaseError) {
-            console.error("Firebase Auth Error:", firebaseError);
-            return res.status(400).json({
-                message: "Failed to create Firebase user",
-                error: firebaseError.message
-            });
-        }
-        // Create new user
-        const newUser = new User({
-            fullName,
-            username:`${phoneNumber}@dot.com` ,
-            password:'123456aA!',
-            role: 'client',
-            clientId,
-            isActive: true,
-            needToChangePassword: true,
-            code: "123456",
-            phoneNumber,
-            firebaseUid: firebaseUser.uid // Store Firebase UID for future reference
+        const { organization, error: orgError } = await resolveOrganization({
+            organizationId,
+            organizationCode
         });
+        if (orgError) {
+            return res.status(400).json({ success: false, error: orgError });
+        }
 
-        const savedUser = await newUser.save();
-        //todo: sms
+        if (!organization.isActive) {
+            return res.status(400).json({
+                success: false,
+                error: 'Organization is inactive'
+            });
+        }
+
+        const result = await createClientUser({ fullName, phoneNumber, password, organization });
+        if (!result.success) {
+            return res.status(result.status).json({
+                success: false,
+                error: result.error,
+                message: result.message
+            });
+        }
+
         res.status(201).json({
             success: true,
             message: 'User created successfully',
-            user: {
-                userId: savedUser._id,
-                username: savedUser.username,
-                fullName: savedUser.fullName,
-                role: savedUser.role,
-                clientId: savedUser.clientId
-            }
+            user: formatCreatedUser(result.user)
         });
-    //todo: send username and password to the client via sms / email
     } catch (error) {
         console.error('Error creating user:', error);
         res.status(500).json({
@@ -380,7 +380,8 @@ const assignOrderToWorker = async (req, res) => {
                 { assignedWorkerId: null },
                 { new: true }
             )
-                .populate('userID', 'username fullName clientId')
+                .populate('userID', clientUserPopulateFields)
+                .populate('organizationId', organizationPopulateFields)
                 .populate('assignedWorkerId', workerPopulateFields);
             return res.status(200).json({
                 success: true,
@@ -409,7 +410,8 @@ const assignOrderToWorker = async (req, res) => {
             { assignedWorkerId: worker._id },
             { new: true, runValidators: true }
         )
-            .populate('userID', 'username fullName clientId')
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
 
         res.status(200).json({
@@ -493,7 +495,7 @@ const blockUser = async (req, res) => {
 
 const getAllUsers   = async (req, res) => {
     try {
-        const users = await User.find();
+        const users = await User.find().populate('organizationId', organizationPopulateFields);
         res.status(200).json({
             success: true,
             users: users
@@ -505,7 +507,86 @@ const getAllUsers   = async (req, res) => {
             error: 'Internal server error while fetching users'
         });
     }
-}
+};
+
+const createOrganization = async (req, res) => {
+    try {
+        const { name, organizationCode } = req.body;
+        if (!name || !organizationCode) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: name, organizationCode'
+            });
+        }
+
+        const existing = await Organization.findOne({ organizationCode });
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                error: 'An organization with this organizationCode already exists'
+            });
+        }
+
+        const organization = await new Organization({ name, organizationCode }).save();
+        res.status(201).json({
+            success: true,
+            message: 'Organization created successfully',
+            organization
+        });
+    } catch (error) {
+        console.error('Error creating organization:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while creating organization'
+        });
+    }
+};
+
+const getAllOrganizations = async (req, res) => {
+    try {
+        const organizations = await Organization.find().sort({ createdAt: -1 });
+        res.status(200).json({
+            success: true,
+            organizations
+        });
+    } catch (error) {
+        console.error('Error fetching organizations:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while fetching organizations'
+        });
+    }
+};
+
+const getOrganizationById = async (req, res) => {
+    try {
+        const { organizationId } = req.params;
+        const organization = await Organization.findById(organizationId);
+        if (!organization) {
+            return res.status(404).json({
+                success: false,
+                error: 'Organization not found'
+            });
+        }
+
+        const users = await User.find({
+            organizationId: organization._id,
+            role: 'client'
+        }).select('username fullName phoneNumber isActive createdAt');
+
+        res.status(200).json({
+            success: true,
+            organization,
+            users
+        });
+    } catch (error) {
+        console.error('Error fetching organization:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while fetching organization'
+        });
+    }
+};
 
 module.exports = {
     getAllOrders,
@@ -516,5 +597,8 @@ module.exports = {
     createNewWorker,
     assignOrderToWorker,
     blockUser,
-    getAllUsers
+    getAllUsers,
+    createOrganization,
+    getAllOrganizations,
+    getOrganizationById
 };

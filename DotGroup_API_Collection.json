@@ -21,7 +21,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"username\": \"client123\",\n  \"password\": \"password123\"\n}"
+							"raw": "{\n  \"phoneNumber\": \"0501234567\",\n  \"password\": \"password123\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/login",
@@ -65,7 +65,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"username\": \"newclient\",\n  \"fullName\": \"Jane Smith\",\n  \"password\": \"password123\",\n  \"clientId\": \"CL002\"\n}"
+							"raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"phoneNumber\": \"0509876543\",\n  \"password\": \"password123\",\n  \"organizationCode\": \"CL002\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/signUp",
@@ -270,6 +270,60 @@
 					"response": []
 				},
 				{
+					"name": "List Organization Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/clients/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"clients",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add User to Organization",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Second Member\",\n  \"phoneNumber\": \"0502223344\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/clients/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"clients",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Update Client Profile",
 					"request": {
 						"method": "PUT",
@@ -285,7 +339,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"fullName\": \"John Doe Updated\",\n  \"username\": \"johndoe_updated\"\n}"
+							"raw": "{\n  \"fullName\": \"John Doe Updated\",\n  \"phoneNumber\": \"0501234567\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/clients/users/{{user_id}}",
@@ -479,7 +533,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"username\": \"newclient\",\n  \"fullName\": \"Jane Smith\",\n  \"password\": \"password123\",\n  \"role\": \"client\",\n  \"clientId\": \"CL002\"\n}"
+							"raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"phoneNumber\": \"0501112233\",\n  \"password\": \"password123\",\n  \"organizationCode\": \"CL002\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/admin/users",
@@ -489,6 +543,60 @@
 							"path": [
 								"admin",
 								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Organization",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Acme Ltd\",\n  \"organizationCode\": \"CL002\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/organizations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"organizations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Organizations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/admin/organizations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"organizations"
 							]
 						}
 					},

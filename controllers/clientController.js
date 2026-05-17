@@ -1,6 +1,9 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const Files = require("../models/files");
+const { clientOrdersFilter, clientCanAccessOrder } = require('../utils/organizationAccess');
+const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
@@ -18,17 +21,19 @@ const createOrder = async (req, res) => {
             notes
         } = req.body;
 
-        // Check required fields
-        if (!customerFullName || !customerPhoneNumber || !customerAddress) {
+        if (!req.user.organizationId) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: customerFullName, customerPhoneNumber, customerAddress'
+                error: 'Your account is not linked to an organization. Contact your administrator.'
             });
         }
+
+
 
         // Create new order
         const newOrder = new Order({
             userID: req.user.userId,
+            organizationId: req.user.organizationId || undefined,
             customerFullName,
             customerPhoneNumber,
             customerAddress,
@@ -63,8 +68,8 @@ const createOrder = async (req, res) => {
 const getClientOrders = async (req, res) => {
     try {
 
-        // Find orders for the authenticated client
-        const orders = await Order.find({ userID: req.user.userId })
+        // Find orders for the authenticated client's organization
+        const orders = await Order.find(clientOrdersFilter(req.user))
             .sort({ createdAt: -1 }); // Most recent first
 
         res.status(200).json({
@@ -87,10 +92,9 @@ const updateOrder = async (req, res) => {
 
         const { orderId } = req.params;
 
-        // Find the order and verify ownership
-        const order = await Order.findOne({_id: orderId, userID: req.user.userId});
+        const order = await Order.findById(orderId);
 
-        if (!order) {
+        if (!clientCanAccessOrder(req.user, order)) {
             return res.status(404).json({
                 success: false,
                 error: 'Order not found'
@@ -168,14 +172,14 @@ const updateProfile = async (req, res) => {
     try {
 
 
-        const { fullName, phoneNumber,clientId } = req.body;
+        const { fullName, phoneNumber } = req.body;
 
-        // Update user profile
+        // Update user profile (organization code is managed by admin)
         const updatedUser = await User.findByIdAndUpdate(
             req.user.userId,
-            { fullName, phoneNumber,clientId },
+            { fullName, phoneNumber },
             { new: true, runValidators: true }
-        );
+        ).populate('organizationId', 'name organizationCode');
 
         if (!updatedUser) {
             return res.status(404).json({
@@ -193,7 +197,9 @@ const updateProfile = async (req, res) => {
                 fullName: updatedUser.fullName,
                 role: updatedUser.role,
                 phoneNumber: updatedUser.phoneNumber,
-                clientId: updatedUser.clientId
+                organizationCode: updatedUser.organizationCode,
+                organizationId: updatedUser.organizationId?._id || updatedUser.organizationId,
+                organization: updatedUser.organizationId
             }
         });
 
@@ -206,10 +212,95 @@ const updateProfile = async (req, res) => {
     }
 };
 
+// List client users in the caller's organization
+const getOrganizationUsers = async (req, res) => {
+    try {
+        if (!req.user.organizationId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Your account is not linked to an organization.'
+            });
+        }
+
+        const users = await User.find({
+            organizationId: req.user.organizationId,
+            role: 'client'
+        }).select('username fullName phoneNumber isActive createdAt organizationCode');
+
+        res.status(200).json({
+            success: true,
+            users
+        });
+    } catch (error) {
+        console.error('Error fetching organization users:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while fetching organization users'
+        });
+    }
+};
+
+// Add a new client user to the caller's organization
+const addOrganizationUser = async (req, res) => {
+    try {
+        if (!req.user.organizationId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Your account is not linked to an organization.'
+            });
+        }
+
+        const organization = await Organization.findById(req.user.organizationId);
+        if (!organization) {
+            return res.status(404).json({
+                success: false,
+                error: 'Organization not found'
+            });
+        }
+        if (!organization.isActive) {
+            return res.status(400).json({
+                success: false,
+                error: 'Organization is inactive'
+            });
+        }
+
+        const { fullName, phoneNumber, password } = req.body;
+        if (!fullName || !phoneNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: fullName, phoneNumber'
+            });
+        }
+
+        const result = await createClientUser({ fullName, phoneNumber, password, organization });
+        if (!result.success) {
+            return res.status(result.status).json({
+                success: false,
+                error: result.error,
+                message: result.message
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'User added to your organization successfully',
+            user: formatCreatedUser(result.user)
+        });
+    } catch (error) {
+        console.error('Error adding organization user:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while adding user'
+        });
+    }
+};
+
 module.exports = {
     createOrder,
     getClientOrders,
     updateOrder,
     updateProfile,
-    orderConfirm
+    orderConfirm,
+    getOrganizationUsers,
+    addOrganizationUser
 };

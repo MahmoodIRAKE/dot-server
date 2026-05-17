@@ -1,8 +1,23 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const smsService = require('../services/smsService');
 const verificationCache = require('../services/verificationCache');
 const admin = require("../config/firebase");  // ✅ not "firebase-admin"
+const { organizationCodeFromBody } = require('../utils/organizationCodeFromBody');
+
+const formatAuthUser = (user) => ({
+    _id: user._id,
+    fullName: user.fullName,
+    username: user.username,
+    phoneNumber: user.phoneNumber,
+    role: user.role,
+    organizationCode: user.organizationCode,
+    organizationId: user.organizationId,
+    firebaseUid: user.firebaseUid,
+    isActive: user.isActive,
+    needToChangePassword: user.needToChangePassword
+});
 
 /**
  * Generate JWT token
@@ -39,10 +54,11 @@ const generateForgetToken = (user) => {
 const signUp = async (req, res) => {
     let user
     try {
-        const { fullName, password, clientId, phoneNumber } = req.body;
+        const { fullName, password, phoneNumber } = req.body;
+        const organizationCode = organizationCodeFromBody(req.body);
 
         // Validate required fields
-        if (!fullName || !phoneNumber || !password  || !clientId) {
+        if (!fullName || !phoneNumber || !password || !organizationCode) {
             return res.status(400).json({
                 success: false,
                 error: 'All fields are required'
@@ -53,6 +69,14 @@ const signUp = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Phone number already registered'
+            });
+        }
+
+        const organization = await Organization.findOne({ organizationCode, isActive: true });
+        if (!organization) {
+            return res.status(400).json({
+                success: false,
+                error: 'Organization not found for this code. Contact your administrator.'
             });
         }
 
@@ -88,7 +112,8 @@ const signUp = async (req, res) => {
                 password,
                 role: 'client',
                 phoneNumber,
-                clientId,
+                organizationCode: organization.organizationCode,
+                organizationId: organization._id,
                 isActive: true,
                 code: verificationCode,
                 firebaseUid: firebaseUser.uid // Store Firebase UID for future reference
@@ -172,15 +197,7 @@ const verify = async (req, res) => {
             success: true,
             message: 'Verification successful',
             token,
-            user: {
-                _id: user._id,
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                clientId: user.clientId,
-                firebaseUid: user.firebaseUid
-
-            }
+            user: formatAuthUser(user)
         });
 
     } catch (error) {
@@ -226,15 +243,7 @@ const verifyForget = async (req, res) => {
             success: true,
             message: 'Verification successful',
             token,
-            user: {
-                _id: user._id,
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                clientId: user.clientId,
-                firebaseUid: user.firebaseUid
-
-            }
+            user: formatAuthUser(user)
         });
 
     } catch (error) {
@@ -296,17 +305,7 @@ const signIn = async (req, res) => {
             success: true,
             message: 'Login successful',
             token,
-            user: {
-                _id: user._id,
-                fullName: user.fullName,
-                username: user.username,
-                phoneNumber: user.phoneNumber,
-                role: user.role,
-                clientId: user.clientId,
-                firebaseUid: user.firebaseUid,
-                isActive: user.isActive,
-                needToChangePassword: user.needToChangePassword
-            }
+            user: formatAuthUser(user)
         });
 
     } catch (error) {
@@ -412,15 +411,7 @@ const resetPassword = async (req, res) => {
             success: true,
             message: 'Verification successful',
             token,
-            user: {
-                _id: user._id,
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                clientId: user.clientId,
-                firebaseUid: user.firebaseUid
-
-            }
+            user: formatAuthUser(user)
         });
 
     } catch (error) {

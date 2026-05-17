@@ -7,6 +7,11 @@ const orderSchema = new mongoose.Schema({
         ref: 'Users',
         required: true
     },
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organizations',
+        required: false
+    },
     assignedWorkerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users',
