@@ -30,6 +30,39 @@ async function resolveOrganization({ organizationId, organizationCode }) {
     return { error: 'organizationId or organizationCode is required' };
 }
 
+/** Resolve org for admin user assign; organizationId wins when both are provided. */
+async function resolveOrganizationForAssign({ organizationId, organizationCode }) {
+    if (organizationId) {
+        if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+            return { status: 400, error: 'Invalid organization id' };
+        }
+        const org = await Organization.findById(organizationId);
+        if (!org) return { status: 404, error: 'Organization not found' };
+        return { organization: org };
+    }
+    if (organizationCode) {
+        const org = await Organization.findOne({ organizationCode });
+        if (!org) return { status: 404, error: 'Organization not found' };
+        return { organization: org };
+    }
+    return null;
+}
+
+const DISALLOWED_USER_UPDATE_FIELDS = ['role', 'username', 'clientId'];
+
+function formatAdminUserResponse(user) {
+    return {
+        userId: user._id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        phoneNumber: user.phoneNumber,
+        organizationCode: user.organizationCode ?? null,
+        organizationId: user.organizationId ?? null,
+        isActive: user.isActive
+    };
+}
+
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
     try {
@@ -428,6 +461,112 @@ const assignOrderToWorker = async (req, res) => {
     }
 };
 
+// Update client user (Admin only) — optional org assign clears or cascades to orders
+const updateUser = async (req, res) => {
+    try {
+        if (!['admin', 'superAdmin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Forbidden'
+            });
+        }
+
+        for (const field of DISALLOWED_USER_UPDATE_FIELDS) {
+            if (req.body[field] !== undefined) {
+                return res.status(400).json({
+                    success: false,
+                    error: `${field} is not allowed in the request body`
+                });
+            }
+        }
+
+        const { userId } = req.params;
+        const { fullName, phoneNumber } = req.body;
+        const hasOrganizationId = Object.prototype.hasOwnProperty.call(req.body, 'organizationId');
+        const hasOrganizationCode = Object.prototype.hasOwnProperty.call(req.body, 'organizationCode');
+        const organizationId = req.body.organizationId;
+        const organizationCode = req.body.organizationCode;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        const updateData = {};
+        if (fullName !== undefined) updateData.fullName = fullName;
+        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+
+        let ordersUpdated;
+        let shouldCascadeOrders = false;
+
+        if (hasOrganizationId || hasOrganizationCode) {
+            const clearById = hasOrganizationId && (organizationId === null || organizationId === '');
+            const clearByCode = hasOrganizationCode && organizationCode === '';
+
+            if (clearById || clearByCode) {
+                updateData.organizationId = null;
+                updateData.organizationCode = null;
+            } else if (hasOrganizationId) {
+                const resolved = await resolveOrganizationForAssign({ organizationId });
+                if (resolved?.error) {
+                    return res.status(resolved.status).json({
+                        success: false,
+                        error: resolved.error
+                    });
+                }
+                updateData.organizationId = resolved.organization._id;
+                updateData.organizationCode = resolved.organization.organizationCode;
+                shouldCascadeOrders = true;
+            } else {
+                const resolved = await resolveOrganizationForAssign({ organizationCode });
+                if (resolved?.error) {
+                    return res.status(resolved.status).json({
+                        success: false,
+                        error: resolved.error
+                    });
+                }
+                updateData.organizationId = resolved.organization._id;
+                updateData.organizationCode = resolved.organization.organizationCode;
+                shouldCascadeOrders = true;
+            }
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (shouldCascadeOrders && updateData.organizationId) {
+            const orderUpdateResult = await Order.updateMany(
+                { userID: user._id },
+                { $set: { organizationId: updateData.organizationId } }
+            );
+            ordersUpdated = orderUpdateResult.matchedCount;
+        }
+
+        const response = {
+            success: true,
+            message: 'User updated successfully',
+            user: formatAdminUserResponse(updatedUser)
+        };
+        if (ordersUpdated !== undefined) {
+            response.ordersUpdated = ordersUpdated;
+        }
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while updating user'
+        });
+    }
+};
+
 // Block/Unblock user (Admin only)
 const blockUser = async (req, res) => {
     try {
@@ -594,6 +733,7 @@ module.exports = {
     updateOrder,
     changeOrderStatus,
     addNewUser,
+    updateUser,
     createNewWorker,
     assignOrderToWorker,
     blockUser,

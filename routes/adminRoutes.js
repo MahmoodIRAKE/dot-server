@@ -5,6 +5,7 @@ const {
     updateOrder,
     changeOrderStatus,
     addNewUser,
+    updateUser,
     createNewWorker,
     assignOrderToWorker,
     blockUser,
@@ -79,6 +80,11 @@ router.post('/createNewWorker',
     authMiddleware,
     authorizeRole("admin"),
     createNewWorker);
+
+// Update user (profile + organization; cascades organizationId to user's orders)
+router.put('/users/:userId',
+    authMiddleware,
+    updateUser);
 
 // Block/unblock user
 router.put('/users/:userId/status',
