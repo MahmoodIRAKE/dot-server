@@ -148,6 +148,7 @@ const updateOrder = async (req, res) => {
             description,
             height,
             width,
+            jobRef,
             notes,
             totalPrice,
             status
@@ -195,6 +196,7 @@ const updateOrder = async (req, res) => {
         if (description !== undefined) updateData.description = description;
         if (height !== undefined) updateData.height = height;
         if (width !== undefined) updateData.width = width;
+        if (jobRef !== undefined) updateData.jobRef = jobRef;
         if (notes !== undefined) updateData.notes = notes;
         if (totalPrice !== undefined) updateData.totalPrice = totalPrice;
         if (status !== undefined) updateData.status = status;
@@ -567,6 +569,79 @@ const updateUser = async (req, res) => {
     }
 };
 
+// Delete client user (Admin only) — orders remain for the organization
+const deleteUser = async (req, res) => {
+    try {
+        if (!['admin', 'superAdmin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Forbidden'
+            });
+        }
+
+        const { userId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid user id'
+            });
+        }
+
+        if (userId === req.user.userId.toString()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot delete your own account'
+            });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        if (user.role !== 'client') {
+            return res.status(400).json({
+                success: false,
+                error: 'Only client users can be deleted through this endpoint'
+            });
+        }
+
+        const ordersPreserved = await Order.countDocuments({ userID: user._id });
+
+        if (user.firebaseUid) {
+            try {
+                await admin.auth().deleteUser(user.firebaseUid);
+            } catch (firebaseError) {
+                if (firebaseError.code !== 'auth/user-not-found') {
+                    console.error('Firebase delete error:', firebaseError);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to delete user authentication account'
+                    });
+                }
+            }
+        }
+
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({
+            success: true,
+            message: 'User deleted successfully',
+            ordersPreserved
+        });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while deleting user'
+        });
+    }
+};
+
 // Block/Unblock user (Admin only)
 const blockUser = async (req, res) => {
     try {
@@ -734,6 +809,7 @@ module.exports = {
     changeOrderStatus,
     addNewUser,
     updateUser,
+    deleteUser,
     createNewWorker,
     assignOrderToWorker,
     blockUser,

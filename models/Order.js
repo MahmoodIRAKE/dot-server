@@ -58,6 +58,10 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: false
     },
+    jobRef:{
+        type: String,
+        required: false
+    },
 
     notes: { type: String },
 }, { timestamps: true });

@@ -18,6 +18,7 @@ const createOrder = async (req, res) => {
             description,
             height,
             width,
+            jobRef,
             notes
         } = req.body;
 
@@ -41,6 +42,7 @@ const createOrder = async (req, res) => {
             description,
             height,
             width,
+            jobRef,
             notes,
             status: 'new' // Default status
         });
@@ -111,6 +113,7 @@ const updateOrder = async (req, res) => {
             description,
             height,
             width,
+            jobRef,
             notes
         } = req.body;
 
@@ -125,6 +128,7 @@ const updateOrder = async (req, res) => {
         if (description !== undefined) updateData.description = description;
         if (height !== undefined) updateData.height = height;
         if (width !== undefined) updateData.width = width;
+        if (jobRef !== undefined) updateData.jobRef = jobRef;
         if (notes !== undefined) updateData.notes = notes;
 
         // Update the order

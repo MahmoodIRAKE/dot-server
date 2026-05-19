@@ -6,6 +6,7 @@ const {
     changeOrderStatus,
     addNewUser,
     updateUser,
+    deleteUser,
     createNewWorker,
     assignOrderToWorker,
     blockUser,
@@ -85,6 +86,11 @@ router.post('/createNewWorker',
 router.put('/users/:userId',
     authMiddleware,
     updateUser);
+
+// Delete client user (orders and their organizationId are kept)
+router.delete('/users/:userId',
+    authMiddleware,
+    deleteUser);
 
 // Block/unblock user
 router.put('/users/:userId/status',
