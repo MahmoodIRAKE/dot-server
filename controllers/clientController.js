@@ -4,59 +4,26 @@ const Organization = require('../models/Organization');
 const Files = require("../models/files");
 const { clientOrdersFilter, clientCanAccessOrder } = require('../utils/organizationAccess');
 const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
+const { createClientOrder } = require('../services/createClientOrder');
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
     try {
+        const user = await User.findById(req.user.userId);
+        const result = await createClientOrder(user, req.body);
 
-        // Validate required fields
-        const {
-            customerFullName,
-            customerPhoneNumber,
-            customerAddress,
-            requiredDeliveryDate,
-            description,
-            height,
-            width,
-            jobRef,
-            notes
-        } = req.body;
-
-        if (!req.user.organizationId) {
-            return res.status(400).json({
+        if (!result.success) {
+            return res.status(result.status).json({
                 success: false,
-                error: 'Your account is not linked to an organization. Contact your administrator.'
+                error: result.error
             });
         }
 
-
-
-        // Create new order
-        const newOrder = new Order({
-            userID: req.user.userId,
-            organizationId: req.user.organizationId || undefined,
-            customerFullName,
-            customerPhoneNumber,
-            customerAddress,
-            requiredDeliveryDate,
-            description,
-            height,
-            width,
-            jobRef,
-            notes,
-            status: 'new' // Default status
-        });
-
-        // Save order to database
-        const savedOrder = await newOrder.save();
-
-        // Return success response
         res.status(201).json({
             success: true,
             message: 'Order created successfully',
-            order: savedOrder
+            order: result.order
         });
-
     } catch (error) {
         console.error('Error creating order:', error);
         res.status(500).json({
