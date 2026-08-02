@@ -6,6 +6,9 @@ const {
     updateOrder,
     changeOrderStatus,
     getOrderAuditHistory,
+    createOrderPublicLink,
+    regenerateOrderPublicLink,
+    revokeOrderPublicLink,
     addNewUser,
     updateUser,
     deleteUser,
@@ -59,6 +62,21 @@ router.get('/orders/:orderId/audit-logs',
     authMiddleware,
     authorizeRole("admin"),
     getOrderAuditHistory);
+
+router.post('/orders/:orderId/public-link',
+    authMiddleware,
+    authorizeRole("admin"),
+    createOrderPublicLink);
+
+router.post('/orders/:orderId/public-link/regenerate',
+    authMiddleware,
+    authorizeRole("admin"),
+    regenerateOrderPublicLink);
+
+router.delete('/orders/:orderId/public-link',
+    authMiddleware,
+    authorizeRole("admin"),
+    revokeOrderPublicLink);
 
 router.get('/orders/:orderId',
     authMiddleware,

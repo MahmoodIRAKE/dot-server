@@ -68,6 +68,18 @@ const orderSchema = new mongoose.Schema({
     },
 
     notes: { type: String },
+
+    /** Unguessable token for public private-order status links (sparse unique). */
+    publicStatusToken: {
+        type: String,
+        required: false,
+        index: { unique: true, sparse: true }
+    },
+    /** When false/absent, the public status link is inactive. */
+    publicStatusEnabled: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 orderSchema.plugin(AutoIncrement, { inc_field: 'orderNumber' });

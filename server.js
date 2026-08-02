@@ -46,6 +46,7 @@ app.use('/api/workers', require('./routes/workerRoutes'));
 app.use('/api/clients', require('./routes/clientRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/open', require('./routes/openRoutes'));
+app.use('/api/public', require('./routes/publicRoutes'));
 app.use('/api/files', require('./routes/fileRoutes'));
 
 app.set('view engine', 'ejs');

@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node scripts/verifyCodebase.js && node scripts/testOrderAuditLog.js",
+    "test": "node scripts/verifyCodebase.js && node scripts/testOrderAuditLog.js && node scripts/testPublicOrderStatus.js",
     "verify": "node scripts/verifyCodebase.js",
     "test:audit": "node scripts/testOrderAuditLog.js",
+    "test:public-status": "node scripts/testPublicOrderStatus.js",
     "migrate:order-change-logs": "node scripts/migrateOrderChangeLogs.js",
     "start": "node server.js"
   },

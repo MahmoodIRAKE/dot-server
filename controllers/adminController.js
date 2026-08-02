@@ -11,6 +11,11 @@ const {
     updateOrderWithAudit,
     getOrderAuditLogs
 } = require('../services/orderAuditLog');
+const {
+    ensurePublicLink,
+    regeneratePublicLink,
+    revokePublicLink
+} = require('../services/publicOrderStatus');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require("firebase-admin");
 
@@ -334,6 +339,92 @@ const getOrderAuditHistory = async (req, res) => {
             success: false,
             error: 'Internal server error while fetching order audit logs'
         });
+    }
+};
+
+function handlePublicLinkError(res, error, actionLabel) {
+    if (error.status === 404) {
+        return res.status(404).json({
+            success: false,
+            error: 'Order not found'
+        });
+    }
+    if (error.status === 400) {
+        return res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    }
+    console.error(`Error ${actionLabel} public order link:`, error);
+    return res.status(500).json({
+        success: false,
+        error: `Internal server error while ${actionLabel} public order link`
+    });
+}
+
+// Get or create a public status link for a private order (Admin only)
+const createOrderPublicLink = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const link = await ensurePublicLink(orderId);
+        res.status(200).json({
+            success: true,
+            message: 'Public status link ready',
+            link
+        });
+    } catch (error) {
+        return handlePublicLinkError(res, error, 'creating');
+    }
+};
+
+// Regenerate public status token (Admin only)
+const regenerateOrderPublicLink = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const link = await regeneratePublicLink(orderId);
+        res.status(200).json({
+            success: true,
+            message: 'Public status link regenerated',
+            link
+        });
+    } catch (error) {
+        return handlePublicLinkError(res, error, 'regenerating');
+    }
+};
+
+// Revoke public status link (Admin only)
+const revokeOrderPublicLink = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const link = await revokePublicLink(orderId);
+        res.status(200).json({
+            success: true,
+            message: 'Public status link revoked',
+            link
+        });
+    } catch (error) {
+        return handlePublicLinkError(res, error, 'revoking');
     }
 };
 
@@ -886,6 +977,9 @@ module.exports = {
     updateOrder,
     changeOrderStatus,
     getOrderAuditHistory,
+    createOrderPublicLink,
+    regenerateOrderPublicLink,
+    revokeOrderPublicLink,
     addNewUser,
     updateUser,
     deleteUser,

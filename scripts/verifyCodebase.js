@@ -26,8 +26,11 @@ const codeFiles = [
     'middlewares/authMiddleware.js',
     'controllers/clientController.js',
     'controllers/adminController.js',
+    'controllers/publicController.js',
     'routes/adminRoutes.js',
-    'services/orderAuditLog.js'
+    'routes/publicRoutes.js',
+    'services/orderAuditLog.js',
+    'services/publicOrderStatus.js'
 ];
 
 for (const file of codeFiles) {
@@ -93,7 +96,22 @@ require('../models/Organization');
 require('../models/User');
 require('../models/Order');
 require('../models/OrderChangeLog');
+require('../services/publicOrderStatus');
 ok('Mongoose models load');
+
+const orderSrc = fs.readFileSync(path.join(root, 'models/Order.js'), 'utf8');
+if (!orderSrc.includes('publicStatusToken') || !orderSrc.includes('publicStatusEnabled')) {
+    fail('Order model missing public status link fields');
+} else {
+    ok('Order model has public status link fields');
+}
+
+const serverSrc = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+if (!serverSrc.includes("'/api/public'")) {
+    fail('server.js does not mount /api/public');
+} else {
+    ok('server.js mounts /api/public');
+}
 
 if (failed > 0) {
     console.error(`\n${failed} check(s) failed.`);
