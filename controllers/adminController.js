@@ -5,6 +5,12 @@ const Organization = require('../models/Organization');
 const Files = require('../models/files');
 const { organizationCodeFromBody } = require('../utils/organizationCodeFromBody');
 const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
+const { createPrivateOrder } = require('../services/createClientOrder');
+const {
+    resolveActor,
+    updateOrderWithAudit,
+    getOrderAuditLogs
+} = require('../services/orderAuditLog');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require("firebase-admin");
 
@@ -124,22 +130,41 @@ const getOrderDetails = async (req, res) => {
     }
 };
 
+// Create order for an unregistered private client (Admin only)
+const createAdminOrder = async (req, res) => {
+    try {
+        const actor = resolveActor(req.user);
+        const result = await createPrivateOrder(req.body, actor);
+
+        if (!result.success) {
+            return res.status(result.status).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        const order = await Order.findById(result.order._id)
+            .populate('assignedWorkerId', workerPopulateFields);
+
+        res.status(201).json({
+            success: true,
+            message: 'Private order created successfully',
+            order
+        });
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while creating order'
+        });
+    }
+};
+
 // Update order details (Admin only)
 const updateOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
 
-        // Find the order
-        const order = await Order.findById(orderId);
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                error: 'Order not found'
-            });
-        }
-
-        // Extract all updatable fields
         const {
             customerFullName,
             customerPhoneNumber,
@@ -154,7 +179,6 @@ const updateOrder = async (req, res) => {
             status
         } = req.body;
 
-        // Validate required fields if they're being updated
         if (customerFullName !== undefined && !customerFullName) {
             return res.status(400).json({
                 success: false,
@@ -176,7 +200,6 @@ const updateOrder = async (req, res) => {
             });
         }
 
-        // Validate status if it's being updated
         if (status !== undefined) {
             const validStatuses = ['new', 'waiting for approval', 'in progress', 'paymentR', 'DONE', 'delayed', 'declined'];
             if (!validStatuses.includes(status)) {
@@ -187,7 +210,6 @@ const updateOrder = async (req, res) => {
             }
         }
 
-        // Create update object
         const updateData = {};
         if (customerFullName !== undefined) updateData.customerFullName = customerFullName;
         if (customerPhoneNumber !== undefined) updateData.customerPhoneNumber = customerPhoneNumber;
@@ -201,12 +223,15 @@ const updateOrder = async (req, res) => {
         if (totalPrice !== undefined) updateData.totalPrice = totalPrice;
         if (status !== undefined) updateData.status = status;
 
-        // Update the order
-        const updatedOrder = await Order.findByIdAndUpdate(
+        const actor = resolveActor(req.user);
+        const { order: updated } = await updateOrderWithAudit({
             orderId,
             updateData,
-            { new: true, runValidators: true }
-        ).populate('userID', clientUserPopulateFields)
+            actor
+        });
+
+        const updatedOrder = await Order.findById(updated._id)
+            .populate('userID', clientUserPopulateFields)
             .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
 
@@ -217,6 +242,12 @@ const updateOrder = async (req, res) => {
         });
 
     } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
         console.error('Error updating order:', error);
         res.status(500).json({
             success: false,
@@ -228,26 +259,27 @@ const updateOrder = async (req, res) => {
 // Change order status manually (Admin only)
 const changeOrderStatus = async (req, res) => {
     try {
-
         const { orderId } = req.params;
         const { status } = req.body;
 
-
-        // Find and update the order
-        const updatedOrder = await Order.findByIdAndUpdate(
-            orderId,
-            { status: status },
-            { new: true, runValidators: true }
-        ).populate('userID', clientUserPopulateFields)
-            .populate('organizationId', organizationPopulateFields)
-            .populate('assignedWorkerId', workerPopulateFields);
-
-        if (!updatedOrder) {
-            return res.status(404).json({
+        if (!status) {
+            return res.status(400).json({
                 success: false,
-                error: 'Order not found'
+                error: 'status is required'
             });
         }
+
+        const actor = resolveActor(req.user);
+        const { order: updated } = await updateOrderWithAudit({
+            orderId,
+            updateData: { status },
+            actor
+        });
+
+        const updatedOrder = await Order.findById(updated._id)
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
+            .populate('assignedWorkerId', workerPopulateFields);
 
         res.status(200).json({
             success: true,
@@ -256,10 +288,51 @@ const changeOrderStatus = async (req, res) => {
         });
 
     } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
         console.error('Error changing order status:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error while changing order status'
+        });
+    }
+};
+
+// Get audit / change history for an order (Admin only)
+const getOrderAuditHistory = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const history = await getOrderAuditLogs(orderId);
+        if (!history) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            orderId: history.orderId,
+            orderNumber: history.orderNumber,
+            logs: history.logs
+        });
+    } catch (error) {
+        console.error('Error fetching order audit logs:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while fetching order audit logs'
         });
     }
 };
@@ -400,28 +473,24 @@ const assignOrderToWorker = async (req, res) => {
     try {
         const { orderId } = req.params;
         const { workerId } = req.body;
-
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                error: 'Order not found'
-            });
-        }
+        const actor = resolveActor(req.user);
 
         if (workerId === undefined || workerId === null || workerId === '') {
-            const updated = await Order.findByIdAndUpdate(
+            const { order: updated } = await updateOrderWithAudit({
                 orderId,
-                { assignedWorkerId: null },
-                { new: true }
-            )
+                updateData: { assignedWorkerId: null },
+                actor
+            });
+
+            const populated = await Order.findById(updated._id)
                 .populate('userID', clientUserPopulateFields)
                 .populate('organizationId', organizationPopulateFields)
                 .populate('assignedWorkerId', workerPopulateFields);
+
             return res.status(200).json({
                 success: true,
                 message: 'Worker unassigned from order',
-                order: updated
+                order: populated
             });
         }
 
@@ -440,11 +509,13 @@ const assignOrderToWorker = async (req, res) => {
             });
         }
 
-        const updatedOrder = await Order.findByIdAndUpdate(
+        const { order: updated } = await updateOrderWithAudit({
             orderId,
-            { assignedWorkerId: worker._id },
-            { new: true, runValidators: true }
-        )
+            updateData: { assignedWorkerId: worker._id },
+            actor
+        });
+
+        const updatedOrder = await Order.findById(updated._id)
             .populate('userID', clientUserPopulateFields)
             .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields);
@@ -455,6 +526,12 @@ const assignOrderToWorker = async (req, res) => {
             order: updatedOrder
         });
     } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
         console.error('Error assigning order to worker:', error);
         res.status(500).json({
             success: false,
@@ -805,8 +882,10 @@ const getOrganizationById = async (req, res) => {
 module.exports = {
     getAllOrders,
     getOrderDetails,
+    createAdminOrder,
     updateOrder,
     changeOrderStatus,
+    getOrderAuditHistory,
     addNewUser,
     updateUser,
     deleteUser,

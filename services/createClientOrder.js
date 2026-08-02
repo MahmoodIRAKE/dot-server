@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const { saveNewOrderWithAudit } = require('./orderAuditLog');
 
 const ORDER_FIELD_KEYS = [
     'customerFullName',
@@ -29,7 +30,14 @@ function validateOrderFields(fields) {
     return missing;
 }
 
-async function createClientOrder(user, body) {
+function actorFromUser(user) {
+    return {
+        userId: user._id || user.userId,
+        userName: user.fullName || user.username || 'Unknown'
+    };
+}
+
+async function createClientOrder(user, body, actor = null) {
     if (!user.organizationId) {
         return {
             success: false,
@@ -55,7 +63,47 @@ async function createClientOrder(user, body) {
         status: 'new'
     });
 
-    const savedOrder = await newOrder.save();
+    const auditActor = actor || actorFromUser(user);
+    const savedOrder = await saveNewOrderWithAudit(newOrder, auditActor);
+    return { success: true, order: savedOrder };
+}
+
+function validatePrivateOrderFields(fields) {
+    const missing = [];
+    for (const key of ORDER_FIELD_KEYS) {
+        if (!fields[key]) {
+            missing.push(key);
+        }
+    }
+    return missing;
+}
+
+async function createPrivateOrder(body, actor) {
+    const orderFields = pickOrderFields(body);
+    const missing = validatePrivateOrderFields(orderFields);
+    if (missing.length > 0) {
+        return {
+            success: false,
+            status: 400,
+            error: `Missing required fields: ${missing.join(', ')}`
+        };
+    }
+
+    if (!actor || !actor.userId) {
+        return {
+            success: false,
+            status: 401,
+            error: 'Authenticated admin context is required'
+        };
+    }
+
+    const newOrder = new Order({
+        ...orderFields,
+        isPrivateClient: true,
+        status: 'new'
+    });
+
+    const savedOrder = await saveNewOrderWithAudit(newOrder, actor);
     return { success: true, order: savedOrder };
 }
 
@@ -83,5 +131,7 @@ module.exports = {
     ORDER_FIELD_KEYS,
     pickOrderFields,
     createClientOrder,
-    formatOpenOrder
+    createPrivateOrder,
+    formatOpenOrder,
+    actorFromUser
 };

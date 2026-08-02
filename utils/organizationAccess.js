@@ -16,6 +16,7 @@ function clientOrdersFilter(reqUser) {
  */
 function clientCanAccessOrder(reqUser, order) {
     if (!order) return false;
+    if (order.isPrivateClient || !order.userID) return false;
     if (reqUser.organizationId && order.organizationId) {
         return order.organizationId.toString() === reqUser.organizationId.toString();
     }

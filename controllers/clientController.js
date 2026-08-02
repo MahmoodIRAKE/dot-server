@@ -5,12 +5,14 @@ const Files = require("../models/files");
 const { clientOrdersFilter, clientCanAccessOrder } = require('../utils/organizationAccess');
 const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
 const { createClientOrder } = require('../services/createClientOrder');
+const { resolveActor, updateOrderWithAudit } = require('../services/orderAuditLog');
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
-        const result = await createClientOrder(user, req.body);
+        const actor = resolveActor(req.user);
+        const result = await createClientOrder(user, req.body, actor);
 
         if (!result.success) {
             return res.status(result.status).json({
@@ -70,8 +72,6 @@ const updateOrder = async (req, res) => {
             });
         }
 
-
-        // Extract updatable fields (clients cannot update status, totalPrice, or admin fields)
         const {
             customerFullName,
             customerPhoneNumber,
@@ -84,9 +84,6 @@ const updateOrder = async (req, res) => {
             notes
         } = req.body;
 
-
-
-        // Create update object with only allowed fields
         const updateData = {};
         if (customerFullName !== undefined) updateData.customerFullName = customerFullName;
         if (customerPhoneNumber !== undefined) updateData.customerPhoneNumber = customerPhoneNumber;
@@ -98,12 +95,12 @@ const updateOrder = async (req, res) => {
         if (jobRef !== undefined) updateData.jobRef = jobRef;
         if (notes !== undefined) updateData.notes = notes;
 
-        // Update the order
-        const updatedOrder = await Order.findByIdAndUpdate(
+        const actor = resolveActor(req.user);
+        const { order: updatedOrder } = await updateOrderWithAudit({
             orderId,
             updateData,
-            { new: true, runValidators: true }
-        );
+            actor
+        });
 
         res.status(200).json({
             success: true,
@@ -112,6 +109,12 @@ const updateOrder = async (req, res) => {
         });
 
     } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
         console.error('Error updating order:', error);
         res.status(500).json({
             success: false,

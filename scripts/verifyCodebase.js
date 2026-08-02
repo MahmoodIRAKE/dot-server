@@ -21,11 +21,13 @@ const codeFiles = [
     'models/Organization.js',
     'models/User.js',
     'models/Order.js',
+    'models/OrderChangeLog.js',
     'utils/organizationAccess.js',
     'middlewares/authMiddleware.js',
     'controllers/clientController.js',
     'controllers/adminController.js',
-    'routes/adminRoutes.js'
+    'routes/adminRoutes.js',
+    'services/orderAuditLog.js'
 ];
 
 for (const file of codeFiles) {
@@ -36,7 +38,9 @@ for (const file of codeFiles) {
 
 const forbiddenInJs = ['clientId'];
 for (const file of codeFiles) {
-    const content = fs.readFileSync(path.join(root, file), 'utf8');
+    const content = fs.readFileSync(path.join(root, file), 'utf8')
+        // Allow rejecting legacy clientId in request bodies
+        .replace(/DISALLOWED_USER_UPDATE_FIELDS\s*=\s*\[[^\]]*]/g, 'DISALLOWED_USER_UPDATE_FIELDS = []');
     for (const term of forbiddenInJs) {
         if (content.includes(term)) {
             fail(`${file} still references "${term}"`);
@@ -88,6 +92,7 @@ if (clientCanAccessOrder({ userId, organizationId: orgId }, otherOrder)) {
 require('../models/Organization');
 require('../models/User');
 require('../models/Order');
+require('../models/OrderChangeLog');
 ok('Mongoose models load');
 
 if (failed > 0) {

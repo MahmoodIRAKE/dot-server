@@ -2,8 +2,10 @@ const express = require('express');
 const {
     getAllOrders,
     getOrderDetails,
+    createAdminOrder,
     updateOrder,
     changeOrderStatus,
+    getOrderAuditHistory,
     addNewUser,
     updateUser,
     deleteUser,
@@ -28,6 +30,11 @@ router.get('/orders',
     authorizeRole("admin"),
     getAllOrders);
 
+router.post('/orders',
+    authMiddleware,
+    authorizeRole("admin"),
+    createAdminOrder);
+
 router.get('/users',
     authMiddleware,
     authorizeRole("admin"),
@@ -47,6 +54,11 @@ router.get('/organizations/:organizationId',
     authMiddleware,
     authorizeRole("admin"),
     getOrganizationById);
+
+router.get('/orders/:orderId/audit-logs',
+    authMiddleware,
+    authorizeRole("admin"),
+    getOrderAuditHistory);
 
 router.get('/orders/:orderId',
     authMiddleware,

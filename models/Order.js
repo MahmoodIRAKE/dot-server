@@ -5,7 +5,11 @@ const orderSchema = new mongoose.Schema({
     userID: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users',
-        required: true
+        required: false
+    },
+    isPrivateClient: {
+        type: Boolean,
+        default: false
     },
     organizationId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -40,7 +44,7 @@ const orderSchema = new mongoose.Schema({
     },
     customerAddress:{
         type: String,
-        required: true
+        required: false
     },
     customerPhoneNumber:{
         type: String,
