@@ -1,0 +1,191 @@
+================================================================================
+DOTGROUP REACT — ORGANIZATION MIGRATION (Cursor Agent Instructions)
+================================================================================
+
+COPY INTO CURSOR CHAT (frontend repo):
+----------------------------------------------------------------------
+@FE_CURSOR_ORGANIZATION_TASK.txt
+
+You are migrating the DotGroup React app to the new Organization backend API.
+
+Rules:
+- Replace clientId with organizationCode everywhere in FE code.
+- Add organizationId to auth state (Mongo ObjectId string).
+- Do NOT change worker features.
+- Client orders are shared per organization (not per user).
+- Full API details are in this file below.
+
+Work in order: Types → Auth → API services → Admin pages → Client pages → grep cleanup.
+When done, confirm every item in ACCEPTANCE CHECKLIST at the bottom.
+----------------------------------------------------------------------
+
+BASE URL:     {env}/api   (example: http://localhost:5000/api)
+AUTH HEADER:  Authorization: Bearer <token>
+
+================================================================================
+WHAT CHANGED (backend behavior you must mirror in UI)
+================================================================================
+
+BEFORE                          AFTER
+------                          -----
+clientId on user                organizationCode (string, e.g. "CL001")
+(no org entity)                 organizationId (Mongo ObjectId on user + order)
+orders = per user               orders = per organization (all members see all)
+only admin adds users           admin OR any client in org can add users
+client signs up freely          sign-up requires existing organizationCode
+
+WORKERS: unchanged — no organization fields.
+
+================================================================================
+FIELD DICTIONARY (do not confuse these)
+================================================================================
+
+organizationCode  = business code string "CL001" (was clientId)
+organizationId    = MongoDB _id string linking user/order to Organization
+Organization      = { _id, name, organizationCode, isActive }
+
+================================================================================
+STEP-BY-STEP (execute in this order)
+================================================================================
+
+[1] TYPES — add Organization interface; add organizationCode + organizationId to User and Order
+
+[2] AUTH STATE — after login/verify, store user.organizationId and user.organizationCode
+
+[3] SIGN-UP — request body uses organizationCode (not clientId); show error if org not found
+
+[4] API SERVICES — implement functions in section "API FUNCTIONS TO ADD/UPDATE" below
+
+[5] ADMIN UI — new pages:
+    - List organizations      GET  /admin/organizations
+    - Create organization     POST /admin/organizations
+    - Organization detail     GET  /admin/organizations/:id
+    - Update Add User form    POST /admin/users (see payload below)
+
+[6] CLIENT UI — new page Team/Members:
+    - List members            GET  /clients/users
+    - Invite member           POST /clients/users (no org in body — uses logged-in user's org)
+
+[7] CLIENT ORDERS — list shows all org orders; create order blocked if !user.organizationId
+
+[8] CLIENT PROFILE — edit only fullName + phoneNumber (remove organizationCode from form)
+
+[9] CLEANUP — ripgrep: clientId in *.ts *.tsx must be zero (except this doc)
+
+================================================================================
+API FUNCTIONS TO ADD/UPDATE (axios/fetch layer)
+================================================================================
+
+AUTH (update)
+  login({ phoneNumber, password })
+  signUp({ fullName, phoneNumber, password, organizationCode })
+  verify({ userId, code })
+
+ADMIN (new)
+  createOrganization({ name, organizationCode }, token)
+  listOrganizations(token)
+  getOrganizationById(organizationId, token)
+
+ADMIN (update)
+  addClientUser({ fullName, phoneNumber, password?, organizationCode? | organizationId? }, token)
+  REMOVE from body: role, username, clientId
+
+CLIENT (new)
+  listOrganizationMembers(token)          -> GET  /clients/users
+  addOrganizationMember({ fullName, phoneNumber, password? }, token) -> POST /clients/users
+
+CLIENT (behavior only — same URLs)
+  getClientOrders(token)     -> returns ALL org orders
+  createOrder(...)           -> 400 if user has no organizationId
+  updateOrder(...)           -> can edit any order in same org
+  updateProfile(...)         -> body: { fullName?, phoneNumber? } only
+
+================================================================================
+REQUEST / RESPONSE EXAMPLES
+================================================================================
+
+--- POST /auth/login ---
+REQUEST:  { "phoneNumber": "0501234567", "password": "password123" }
+RESPONSE: { "success": true, "token": "...", "user": { "_id", "fullName", "phoneNumber", "role", "organizationCode", "organizationId", ... } }
+
+--- POST /auth/signUp ---
+REQUEST:  { "fullName", "phoneNumber", "password", "organizationCode": "CL001" }
+ERROR:    { "success": false, "error": "Organization not found for this code. Contact your administrator." }
+
+--- POST /admin/organizations ---
+REQUEST:  { "name": "Acme Ltd", "organizationCode": "CL001" }
+RESPONSE: { "success": true, "organization": { "_id", "name", "organizationCode", "isActive" } }
+
+--- GET /admin/organizations ---
+RESPONSE: { "success": true, "organizations": [ ... ] }
+
+--- GET /admin/organizations/:organizationId ---
+RESPONSE: { "success": true, "organization": { ... }, "users": [ ... ] }
+
+--- POST /admin/users ---
+REQUEST:  { "fullName", "phoneNumber", "organizationCode": "CL001" }
+       OR { "fullName", "phoneNumber", "organizationId": "<mongoId>" }
+RESPONSE: { "success": true, "user": { "userId", "username", "fullName", "role", "organizationCode", "organizationId" } }
+
+--- GET /clients/users ---
+RESPONSE: { "success": true, "users": [ { "_id", "fullName", "phoneNumber", "organizationCode", ... } ] }
+
+--- POST /clients/users ---
+REQUEST:  { "fullName", "phoneNumber", "password" }
+RESPONSE: { "success": true, "message": "User added to your organization successfully", "user": { ... } }
+ERROR:    { "success": false, "error": "Your account is not linked to an organization." }
+
+--- POST /clients/orders ---
+ERROR:    { "success": false, "error": "Your account is not linked to an organization. Contact your administrator." }
+
+--- PUT /clients/users/:userId ---
+REQUEST:  { "fullName", "phoneNumber" }   // NO organizationCode
+
+================================================================================
+SUGGESTED ROUTES (React Router)
+================================================================================
+
+/admin/organizations
+/admin/organizations/new
+/admin/organizations/:id
+/client/team
+
+Guard /client/orders/new when !auth.user.organizationId
+
+================================================================================
+RIPGREP (run in frontend repo root)
+================================================================================
+
+rg "clientId" -g "*.ts" -g "*.tsx"
+rg "client_id" -g "*.ts" -g "*.tsx"
+rg "/auth/signUp|signUp" -g "*.ts" -g "*.tsx"
+rg "/admin/users" -g "*.ts" -g "*.tsx"
+rg "/clients/orders" -g "*.ts" -g "*.tsx"
+
+================================================================================
+ACCEPTANCE CHECKLIST (report each as done)
+================================================================================
+
+[ ] No clientId in TS/TSX source (grep clean)
+[ ] Auth stores organizationId + organizationCode after login
+[ ] Sign-up sends organizationCode
+[ ] Admin: create/list/detail organizations works
+[ ] Admin add-user uses phoneNumber + organizationCode (no role/username in body)
+[ ] Client team page: list + add member works
+[ ] Two users same org see same orders
+[ ] Client without organizationId cannot create orders (UI + error handling)
+[ ] Worker screens untouched
+[ ] Profile edit does not allow changing organization code
+
+================================================================================
+BUSINESS FLOW (for UI copy / onboarding)
+================================================================================
+
+1. Admin creates organization (name + organizationCode)
+2. Admin adds first user OR user signs up with that organizationCode
+3. Any org member invites others via POST /clients/users
+4. All members share the same orders list
+
+================================================================================
+END OF CURSOR AGENT TASK
+================================================================================

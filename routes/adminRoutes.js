@@ -21,110 +21,112 @@ const {
     getOrganizationById
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRole = require("../middlewares/authorizeRole");
+const authorizeRole = require('../middlewares/authorizeRole');
 
 const router = express.Router();
 
-// Order management routes
+/** Full admin: create / update / delete clients, orgs, staff */
+const adminOnly = ['admin', 'superAdmin'];
+/** Admin + miniAdmin: orders + read-only clients/orgs/users */
+const orderManagers = ['admin', 'superAdmin', 'miniAdmin'];
 
-// Get all orders
+// Orders — admin + miniAdmin
 router.get('/orders',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     getAllOrders);
 
 router.post('/orders',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     createAdminOrder);
-
-router.get('/users',
-    authMiddleware,
-    authorizeRole("admin"),
-    getAllUsers);
-
-router.post('/organizations',
-    authMiddleware,
-    authorizeRole("admin"),
-    createOrganization);
-
-router.get('/organizations',
-    authMiddleware,
-    authorizeRole("admin"),
-    getAllOrganizations);
-
-router.get('/organizations/:organizationId',
-    authMiddleware,
-    authorizeRole("admin"),
-    getOrganizationById);
 
 router.get('/orders/:orderId/audit-logs',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     getOrderAuditHistory);
 
 router.post('/orders/:orderId/public-link',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     createOrderPublicLink);
 
 router.post('/orders/:orderId/public-link/regenerate',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     regenerateOrderPublicLink);
 
 router.delete('/orders/:orderId/public-link',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     revokeOrderPublicLink);
 
 router.get('/orders/:orderId',
     authMiddleware,
-    authorizeRole("admin"),
-    getOrderDetails); // Get order details
+    authorizeRole(...orderManagers),
+    getOrderDetails);
 
-// Update order details
 router.put('/orders/:orderId',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     updateOrder);
 
-// Change order status
 router.patch('/orders/:orderId/status',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     changeOrderStatus);
 
 router.patch('/orders/:orderId/worker',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...orderManagers),
     assignOrderToWorker);
 
-// Upload files to orde
-// Add new user (client)
+// Users — read for admin + miniAdmin; mutations admin only
+router.get('/users',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    getAllUsers);
+
 router.post('/users',
     authMiddleware,
-    authorizeRole("admin"),
+    authorizeRole(...adminOnly),
     addNewUser);
 
-router.post('/createNewWorker',
-    authMiddleware,
-    authorizeRole("admin"),
-    createNewWorker);
-
-// Update user (profile + organization; cascades organizationId to user's orders)
 router.put('/users/:userId',
     authMiddleware,
+    authorizeRole(...adminOnly),
     updateUser);
 
-// Delete client user (orders and their organizationId are kept)
 router.delete('/users/:userId',
     authMiddleware,
+    authorizeRole(...adminOnly),
     deleteUser);
 
-// Block/unblock user
 router.put('/users/:userId/status',
     authMiddleware,
+    authorizeRole(...adminOnly),
     blockUser);
+
+// Organizations — read for admin + miniAdmin; create admin only
+router.get('/organizations',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    getAllOrganizations);
+
+router.get('/organizations/:organizationId',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    getOrganizationById);
+
+router.post('/organizations',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    createOrganization);
+
+// Create worker or miniAdmin — admin only
+router.post('/createNewWorker',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    createNewWorker);
 
 module.exports = router;

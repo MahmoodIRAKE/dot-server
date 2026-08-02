@@ -13,17 +13,17 @@ const router = express.Router();
 
 router.post('/orders/files',
     authMiddleware,
-    authorizeRole("client","admin"),
+    authorizeRole("client","admin","superAdmin","miniAdmin"),
     saveImagesPath);
 
 router.get('/orders/files/:orderId',
     authMiddleware,
-    authorizeRole("client","admin"),
+    authorizeRole("client","admin","superAdmin","miniAdmin"),
     getImagesPathsByOrderId);
 
 router.delete('/orders/files/:filePath',
     authMiddleware,
-    authorizeRole("client","admin"),
+    authorizeRole("client","admin","superAdmin","miniAdmin"),
     deleteImagesPath);
 
 module.exports = router;

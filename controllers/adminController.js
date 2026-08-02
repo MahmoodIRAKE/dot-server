@@ -481,11 +481,11 @@ const addNewUser = async (req, res) => {
     }
 };
 
-// Create worker user only (Admin) — separate from addNewUser (clients)
+// Create worker or miniAdmin user (Admin only) — separate from addNewUser (clients)
 const createNewWorker = async (req, res) => {
     let firebaseUser;
     try {
-        const { fullName, phoneNumber, password } = req.body;
+        const { fullName, phoneNumber, password, role: requestedRole } = req.body;
 
         if (!fullName || !phoneNumber || !password) {
             return res.status(400).json({
@@ -493,6 +493,9 @@ const createNewWorker = async (req, res) => {
                 error: 'Missing required fields: fullName, phoneNumber, password'
             });
         }
+
+        const allowedStaffRoles = ['worker', 'miniAdmin', 'admin'];
+        const staffRole = allowedStaffRoles.includes(requestedRole) ? requestedRole : 'worker';
 
         const username = `${phoneNumber}@dot.com`;
         const existingUser = await User.findOne({ $or: [{ username }, { phoneNumber }] });
@@ -522,8 +525,8 @@ const createNewWorker = async (req, res) => {
         const newUser = new User({
             fullName,
             username,
-            password:'123456aA!',
-            role: 'worker',
+            password: '123456aA!',
+            role: staffRole,
             isActive: true,
             needToChangePassword: true,
             code: '123456',
@@ -532,9 +535,11 @@ const createNewWorker = async (req, res) => {
         });
 
         const savedUser = await newUser.save();
+        const roleLabels = { worker: 'Worker', miniAdmin: 'Mini admin', admin: 'Admin' };
+        const roleLabel = roleLabels[staffRole] || 'Staff';
         res.status(201).json({
             success: true,
-            message: 'Worker created successfully',
+            message: `${roleLabel} created successfully`,
             user: {
                 userId: savedUser._id,
                 username: savedUser.username,
@@ -551,10 +556,10 @@ const createNewWorker = async (req, res) => {
                 console.error('Failed to cleanup Firebase user:', cleanupError);
             }
         }
-        console.error('Error creating worker:', error);
+        console.error('Error creating staff user:', error);
         res.status(500).json({
             success: false,
-            error: 'Internal server error while creating worker'
+            error: 'Internal server error while creating staff user'
         });
     }
 };

@@ -286,6 +286,7 @@ assert(!valuesEqual('12', '112'), 'different widths not equal');
     const path = require('path');
     const routes = fs.readFileSync(path.join(__dirname, '../routes/adminRoutes.js'), 'utf8');
     assert(routes.includes("'/orders/:orderId/audit-logs'"), 'audit route exists');
+    assert(routes.includes('miniAdmin') || routes.includes('orderManagers'), 'audit allows miniAdmin via order managers');
 
     delete mongoose.connection.models.OrderChangeLog;
     require('../models/OrderChangeLog');
