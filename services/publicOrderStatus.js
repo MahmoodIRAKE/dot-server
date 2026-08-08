@@ -34,29 +34,21 @@ function notFoundError(message = 'Order not found') {
     return err;
 }
 
-function badRequestError(message) {
-    const err = new Error(message);
-    err.status = 400;
-    return err;
-}
-
-async function loadPrivateOrder(orderId, deps = {}) {
+async function loadOrder(orderId, deps = {}) {
     const OrderModel = deps.Order || Order;
     const order = await OrderModel.findById(orderId);
     if (!order) {
         throw notFoundError('Order not found');
-    }
-    if (!order.isPrivateClient) {
-        throw badRequestError('Public status links are only available for private orders');
     }
     return order;
 }
 
 /**
  * Get existing public link or create one (enable + token).
+ * Available for all order types (private and organization).
  */
 async function ensurePublicLink(orderId, deps = {}) {
-    const order = await loadPrivateOrder(orderId, deps);
+    const order = await loadOrder(orderId, deps);
 
     if (!order.publicStatusToken || !order.publicStatusEnabled) {
         order.publicStatusToken = order.publicStatusToken || generateToken();
@@ -71,7 +63,7 @@ async function ensurePublicLink(orderId, deps = {}) {
  * Issue a new token and enable the link (invalidates previous URL).
  */
 async function regeneratePublicLink(orderId, deps = {}) {
-    const order = await loadPrivateOrder(orderId, deps);
+    const order = await loadOrder(orderId, deps);
     order.publicStatusToken = generateToken();
     order.publicStatusEnabled = true;
     await order.save();
@@ -82,7 +74,7 @@ async function regeneratePublicLink(orderId, deps = {}) {
  * Disable the public link and clear the token so old URLs stop working.
  */
 async function revokePublicLink(orderId, deps = {}) {
-    const order = await loadPrivateOrder(orderId, deps);
+    const order = await loadOrder(orderId, deps);
     order.publicStatusToken = undefined;
     order.publicStatusEnabled = false;
     await order.save();
@@ -101,8 +93,7 @@ async function getPublicStatusByToken(token, deps = {}) {
 
     const order = await OrderModel.findOne({
         publicStatusToken: token.trim(),
-        publicStatusEnabled: true,
-        isPrivateClient: true
+        publicStatusEnabled: true
     }).select('orderNumber status customerFullName requiredDeliveryDate updatedAt');
 
     if (!order) {

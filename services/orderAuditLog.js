@@ -81,6 +81,16 @@ function displayValue(value) {
     return serialized === null ? '(empty)' : serialized;
 }
 
+/** Create logs have null oldValue — show only the initial value, not "(empty) → …". */
+function formatFieldChangeText(fieldName, oldValue, newValue) {
+    const oldSerialized = serializeValue(oldValue);
+    const newDisplay = displayValue(newValue);
+    if (oldSerialized === null) {
+        return `${fieldName}: ${newDisplay}`;
+    }
+    return `${fieldName}: ${displayValue(oldValue)} → ${newDisplay}`;
+}
+
 function resolveActor(reqUser) {
     if (!reqUser || !reqUser.userId) {
         throw new Error('Authenticated user context is required for audit logging');
@@ -130,7 +140,7 @@ function computeCreateChanges(order) {
 function buildChangeText(changes, prefix) {
     if (!changes || changes.length === 0) return null;
     const lines = changes
-        .map((c) => `${c.fieldName}: ${displayValue(c.oldValue)} → ${displayValue(c.newValue)}`)
+        .map((c) => formatFieldChangeText(c.fieldName, c.oldValue, c.newValue))
         .join('; ');
     return prefix ? `${prefix}: ${lines}` : lines;
 }
@@ -158,7 +168,7 @@ function formatAuditLog(doc) {
     const oldValue = doc.oldValue ?? null;
     const newValue = doc.newValue ?? null;
     const text = fieldName
-        ? `${fieldName}: ${displayValue(oldValue)} → ${displayValue(newValue)}`
+        ? formatFieldChangeText(fieldName, oldValue, newValue)
         : (doc.text || null);
 
     return {
@@ -268,6 +278,8 @@ module.exports = {
     getFieldValue,
     serializeValue,
     valuesEqual,
+    displayValue,
+    formatFieldChangeText,
     resolveActor,
     computeFieldChanges,
     computeCreateChanges,

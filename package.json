@@ -8,6 +8,8 @@
     "test:audit": "node scripts/testOrderAuditLog.js",
     "test:public-status": "node scripts/testPublicOrderStatus.js",
     "migrate:order-change-logs": "node scripts/migrateOrderChangeLogs.js",
+    "wipe:business-data": "node scripts/wipeBusinessData.js",
+    "wipe:business-data:confirm": "node scripts/wipeBusinessData.js --confirm",
     "start": "node server.js"
   },
   "keywords": [],
@@ -22,7 +24,7 @@
     "express": "^5.1.0",
     "express-fileupload": "^1.5.2",
     "firebase": "^11.10.0",
-    "firebase-admin": "^13.4.0",
+    "firebase-admin": "^14.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.3",
     "mongoose-sequence": "^6.0.1",

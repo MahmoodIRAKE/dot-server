@@ -130,7 +130,6 @@ function assert(condition, msg) {
             const found = Object.values(store).find((o) => {
                 if (query.publicStatusToken && o.publicStatusToken !== query.publicStatusToken) return false;
                 if (query.publicStatusEnabled === true && !o.publicStatusEnabled) return false;
-                if (query.isPrivateClient === true && !o.isPrivateClient) return false;
                 return true;
             });
             return {
@@ -141,15 +140,6 @@ function assert(condition, msg) {
         }
     };
 
-    // private-only guard
-    let nonPrivateBlocked = false;
-    try {
-        await ensurePublicLink(publicClientId, { Order: mockOrder });
-    } catch (err) {
-        nonPrivateBlocked = err.status === 400;
-    }
-    assert(nonPrivateBlocked, 'non-private order rejected for public link');
-
     let missing = false;
     try {
         await ensurePublicLink('missing', { Order: mockOrder });
@@ -158,7 +148,12 @@ function assert(condition, msg) {
     }
     assert(missing, 'missing order → 404');
 
-    // ensure creates token
+    // ensure works for organization (non-private) orders too
+    const orgCreated = await ensurePublicLink(publicClientId, { Order: mockOrder });
+    assert(orgCreated.enabled, 'ensure enables link for non-private order');
+    assert(typeof orgCreated.token === 'string' && orgCreated.token.length > 0, 'non-private token set');
+
+    // ensure creates token for private order
     const created = await ensurePublicLink(privateId, { Order: mockOrder });
     assert(created.enabled, 'ensure enables link');
     assert(typeof created.token === 'string' && created.token.length > 0, 'ensure sets token');
@@ -175,6 +170,10 @@ function assert(condition, msg) {
     assertEqual(status.orderNumber, 42, 'public status orderNumber');
     assertEqual(status.status, 'new', 'public status status');
     assert(!Object.prototype.hasOwnProperty.call(status, 'totalPrice'), 'public status no price');
+
+    const orgStatus = await getPublicStatusByToken(orgCreated.token, { Order: mockOrder });
+    assert(orgStatus, 'public status found for non-private order');
+    assertEqual(orgStatus.orderNumber, 99, 'non-private public status orderNumber');
 
     // regenerate invalidates old token
     const regenerated = await regeneratePublicLink(privateId, { Order: mockOrder });

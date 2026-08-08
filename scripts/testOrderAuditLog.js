@@ -106,6 +106,25 @@ assert(!valuesEqual('12', '112'), 'different widths not equal');
     });
     assert(created.some((c) => c.fieldName === 'status'), 'create has status');
     assert(created.every((c) => c.oldValue === null), 'create old is null');
+
+    const createFormatted = formatAuditLog({
+        _id: 'c1',
+        userId: 'u',
+        userName: 'Admin',
+        fieldName: 'customerFullName',
+        oldValue: null,
+        newValue: 'Walk-in',
+        createdAt: 't'
+    });
+    assertEqual(
+        createFormatted.text,
+        'customerFullName: Walk-in',
+        'create log omits empty → arrow'
+    );
+    assert(
+        !String(createFormatted.text).includes('(empty)'),
+        'create log text has no (empty)'
+    );
 }
 
 {

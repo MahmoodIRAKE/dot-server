@@ -16,8 +16,9 @@ const {
     regeneratePublicLink,
     revokePublicLink
 } = require('../services/publicOrderStatus');
+const { getOrderPrintData } = require('../services/orderPrint');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
-const admin = require("firebase-admin");
+const admin = require('../config/firebase');
 
 const workerPopulateFields = 'username fullName phoneNumber role';
 const clientUserPopulateFields = 'username fullName organizationCode phoneNumber organizationId';
@@ -362,7 +363,7 @@ function handlePublicLinkError(res, error, actionLabel) {
     });
 }
 
-// Get or create a public status link for a private order (Admin only)
+// Get or create a public status link for any order (Admin / miniAdmin)
 const createOrderPublicLink = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -742,7 +743,20 @@ const updateUser = async (req, res) => {
     }
 };
 
-// Delete client user (Admin only) — orders remain for the organization
+const DELETABLE_USER_ROLES = ['client', 'worker', 'miniAdmin'];
+
+async function deleteFirebaseAuthUser(firebaseUid) {
+    if (!firebaseUid) return;
+    try {
+        await admin.auth().deleteUser(firebaseUid);
+    } catch (firebaseError) {
+        if (firebaseError.code !== 'auth/user-not-found') {
+            throw firebaseError;
+        }
+    }
+}
+
+// Delete client / worker / miniAdmin (Admin only). Orders are preserved.
 const deleteUser = async (req, res) => {
     try {
         if (!['admin', 'superAdmin'].includes(req.user.role)) {
@@ -776,27 +790,33 @@ const deleteUser = async (req, res) => {
             });
         }
 
-        if (user.role !== 'client') {
+        if (!DELETABLE_USER_ROLES.includes(user.role)) {
             return res.status(400).json({
                 success: false,
-                error: 'Only client users can be deleted through this endpoint'
+                error: 'Only client, worker, or miniAdmin users can be deleted'
             });
         }
 
-        const ordersPreserved = await Order.countDocuments({ userID: user._id });
+        const ordersPreserved = await Order.countDocuments({
+            $or: [{ userID: user._id }, { assignedWorkerId: user._id }]
+        });
 
-        if (user.firebaseUid) {
-            try {
-                await admin.auth().deleteUser(user.firebaseUid);
-            } catch (firebaseError) {
-                if (firebaseError.code !== 'auth/user-not-found') {
-                    console.error('Firebase delete error:', firebaseError);
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Failed to delete user authentication account'
-                    });
-                }
-            }
+        try {
+            await deleteFirebaseAuthUser(user.firebaseUid);
+        } catch (firebaseError) {
+            console.error('Firebase delete error:', firebaseError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to delete user authentication account'
+            });
+        }
+
+        // Detach worker from orders before removing the user
+        if (user.role === 'worker' || user.role === 'miniAdmin') {
+            await Order.updateMany(
+                { assignedWorkerId: user._id },
+                { $unset: { assignedWorkerId: 1 } }
+            );
         }
 
         await User.findByIdAndDelete(userId);
@@ -804,6 +824,7 @@ const deleteUser = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'User deleted successfully',
+            deletedRole: user.role,
             ordersPreserved
         });
     } catch (error) {
@@ -975,6 +996,113 @@ const getOrganizationById = async (req, res) => {
     }
 };
 
+// Delete organization + its client users (Admin only). Orders are preserved.
+const deleteOrganization = async (req, res) => {
+    try {
+        if (!['admin', 'superAdmin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Forbidden'
+            });
+        }
+
+        const { organizationId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid organization id'
+            });
+        }
+
+        const organization = await Organization.findById(organizationId);
+        if (!organization) {
+            return res.status(404).json({
+                success: false,
+                error: 'Organization not found'
+            });
+        }
+
+        const clients = await User.find({
+            organizationId: organization._id,
+            role: 'client'
+        });
+
+        for (const client of clients) {
+            try {
+                await deleteFirebaseAuthUser(client.firebaseUid);
+            } catch (firebaseError) {
+                console.error('Firebase delete error for org client:', firebaseError);
+                return res.status(500).json({
+                    success: false,
+                    error: `Failed to delete authentication for client ${client.fullName || client.username}`
+                });
+            }
+        }
+
+        const clientsDeleted = await User.deleteMany({
+            organizationId: organization._id,
+            role: 'client'
+        });
+
+        // Keep historical orders; clear org link so lists stay consistent
+        await Order.updateMany(
+            { organizationId: organization._id },
+            { $unset: { organizationId: 1 } }
+        );
+
+        await Organization.findByIdAndDelete(organizationId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Organization deleted successfully',
+            clientsDeleted: clientsDeleted.deletedCount || 0
+        });
+    } catch (error) {
+        console.error('Error deleting organization:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while deleting organization'
+        });
+    }
+};
+
+// Print payload for formal order documents (Admin / miniAdmin)
+const getOrderPrint = async (req, res) => {
+    try {
+        const { orderId, printType } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const payload = await getOrderPrintData(orderId, printType);
+        return res.status(200).json({
+            success: true,
+            print: payload
+        });
+    } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+        if (error.status === 400) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+        console.error('Error building order print payload:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while preparing print data'
+        });
+    }
+};
+
 module.exports = {
     getAllOrders,
     getOrderDetails,
@@ -985,6 +1113,7 @@ module.exports = {
     createOrderPublicLink,
     regenerateOrderPublicLink,
     revokeOrderPublicLink,
+    getOrderPrint,
     addNewUser,
     updateUser,
     deleteUser,
@@ -994,5 +1123,6 @@ module.exports = {
     getAllUsers,
     createOrganization,
     getAllOrganizations,
-    getOrganizationById
+    getOrganizationById,
+    deleteOrganization
 };

@@ -9,6 +9,7 @@ const {
     createOrderPublicLink,
     regenerateOrderPublicLink,
     revokeOrderPublicLink,
+    getOrderPrint,
     addNewUser,
     updateUser,
     deleteUser,
@@ -18,7 +19,8 @@ const {
     getAllUsers,
     createOrganization,
     getAllOrganizations,
-    getOrganizationById
+    getOrganizationById,
+    deleteOrganization
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require('../middlewares/authorizeRole');
@@ -45,6 +47,11 @@ router.get('/orders/:orderId/audit-logs',
     authMiddleware,
     authorizeRole(...orderManagers),
     getOrderAuditHistory);
+
+router.get('/orders/:orderId/print/:printType',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    getOrderPrint);
 
 router.post('/orders/:orderId/public-link',
     authMiddleware,
@@ -122,6 +129,11 @@ router.post('/organizations',
     authMiddleware,
     authorizeRole(...adminOnly),
     createOrganization);
+
+router.delete('/organizations/:organizationId',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    deleteOrganization);
 
 // Create worker or miniAdmin — admin only
 router.post('/createNewWorker',
