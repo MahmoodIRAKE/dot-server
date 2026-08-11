@@ -53,6 +53,7 @@ function assert(condition, msg) {
     const dto = formatPublicStatus({
         orderNumber: 42,
         status: 'in progress',
+        customerStatus: 'in_production',
         customerFullName: 'John Doe',
         requiredDeliveryDate: '2026-07-01',
         updatedAt: '2026-08-02T10:00:00.000Z',
@@ -63,7 +64,8 @@ function assert(condition, msg) {
         assignedWorkerId: 'w1'
     });
     assertEqual(dto.orderNumber, 42, 'public has orderNumber');
-    assertEqual(dto.status, 'in progress', 'public has status');
+    assertEqual(dto.customerStatus, 'in_production', 'public has customerStatus');
+    assert(!Object.prototype.hasOwnProperty.call(dto, 'status'), 'public has no internal status');
     assertEqual(dto.customerFullName, 'John Doe', 'public has name');
     assertEqual(dto.requiredDeliveryDate, '2026-07-01', 'public has delivery date');
     assert(!Object.prototype.hasOwnProperty.call(dto, 'customerPhoneNumber'), 'no phone');
@@ -97,6 +99,7 @@ function assert(condition, msg) {
             publicStatusToken: seed.publicStatusToken,
             publicStatusEnabled: seed.publicStatusEnabled || false,
             status: seed.status || 'new',
+            customerStatus: seed.customerStatus || 'order_received',
             customerFullName: seed.customerFullName || 'Walk-in',
             requiredDeliveryDate: seed.requiredDeliveryDate || '2026-07-01',
             updatedAt: seed.updatedAt || '2026-08-01T00:00:00.000Z',
@@ -168,7 +171,8 @@ function assert(condition, msg) {
     const status = await getPublicStatusByToken(firstToken, { Order: mockOrder });
     assert(status, 'public status found');
     assertEqual(status.orderNumber, 42, 'public status orderNumber');
-    assertEqual(status.status, 'new', 'public status status');
+    assertEqual(status.customerStatus, 'order_received', 'public status customerStatus');
+    assert(!Object.prototype.hasOwnProperty.call(status, 'status'), 'public status no internal status');
     assert(!Object.prototype.hasOwnProperty.call(status, 'totalPrice'), 'public status no price');
 
     const orgStatus = await getPublicStatusByToken(orgCreated.token, { Order: mockOrder });
@@ -196,6 +200,7 @@ function assert(condition, msg) {
 
     // routes wired
     const adminRoutes = fs.readFileSync(path.join(__dirname, '../routes/adminRoutes.js'), 'utf8');
+    assert(adminRoutes.includes("'/orders/:orderId/customer-status'"), 'admin customer-status route');
     assert(adminRoutes.includes("'/orders/:orderId/public-link'"), 'admin public-link route');
     assert(adminRoutes.includes("'/orders/:orderId/public-link/regenerate'"), 'admin regenerate route');
     assert(adminRoutes.includes('revokeOrderPublicLink'), 'admin revoke wired');
@@ -209,6 +214,7 @@ function assert(condition, msg) {
     const orderModel = fs.readFileSync(path.join(__dirname, '../models/Order.js'), 'utf8');
     assert(orderModel.includes('publicStatusToken'), 'Order has publicStatusToken');
     assert(orderModel.includes('publicStatusEnabled'), 'Order has publicStatusEnabled');
+    assert(orderModel.includes('customerStatus'), 'Order has customerStatus');
 
     if (failed > 0) {
         console.error(`\n${failed} public status link check(s) failed.`);

@@ -18,6 +18,7 @@ const {
 } = require('../services/publicOrderStatus');
 const OrderChangeLog = require('../models/OrderChangeLog');
 const { getOrderPrintData } = require('../services/orderPrint');
+const { isValidCustomerStatus } = require('../constants/customerStatus');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require('../config/firebase');
 
@@ -266,7 +267,7 @@ const updateOrder = async (req, res) => {
     }
 };
 
-// Change order status manually (Admin only)
+// Change order status manually (Admin / miniAdmin)
 const changeOrderStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -308,6 +309,51 @@ const changeOrderStatus = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Internal server error while changing order status'
+        });
+    }
+};
+
+// Update external customer-facing status (Admin / miniAdmin) — independent of internal status
+const changeCustomerStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { customerStatus } = req.body;
+
+        if (!customerStatus || !isValidCustomerStatus(customerStatus)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Valid customerStatus is required (order_received, in_production, installation, completed)'
+            });
+        }
+
+        const actor = resolveActor(req.user);
+        const { order: updated } = await updateOrderWithAudit({
+            orderId,
+            updateData: { customerStatus },
+            actor
+        });
+
+        const updatedOrder = await Order.findById(updated._id)
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
+            .populate('assignedWorkerId', workerPopulateFields);
+
+        res.status(200).json({
+            success: true,
+            message: 'Customer status updated successfully',
+            order: updatedOrder
+        });
+    } catch (error) {
+        if (error.status === 404) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+        console.error('Error changing customer status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while changing customer status'
         });
     }
 };
@@ -487,15 +533,17 @@ const addNewUser = async (req, res) => {
 };
 
 // Create worker or miniAdmin user (Admin only) — separate from addNewUser (clients)
+const DEFAULT_STAFF_PASSWORD = '123456aA!';
+
 const createNewWorker = async (req, res) => {
     let firebaseUser;
     try {
-        const { fullName, phoneNumber, password, role: requestedRole } = req.body;
+        const { fullName, phoneNumber, role: requestedRole } = req.body;
 
-        if (!fullName || !phoneNumber || !password) {
+        if (!fullName || !phoneNumber) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: fullName, phoneNumber, password'
+                error: 'Missing required fields: fullName, phoneNumber'
             });
         }
 
@@ -514,7 +562,7 @@ const createNewWorker = async (req, res) => {
         try {
             firebaseUser = await admin.auth().createUser({
                 email: username,
-                password,
+                password: DEFAULT_STAFF_PASSWORD,
                 displayName: fullName,
                 phoneNumber: `+972${phoneNumber.replace(/^0/, '')}`,
                 disabled: false
@@ -530,7 +578,7 @@ const createNewWorker = async (req, res) => {
         const newUser = new User({
             fullName,
             username,
-            password: '123456aA!',
+            password: DEFAULT_STAFF_PASSWORD,
             role: staffRole,
             isActive: true,
             needToChangePassword: true,
@@ -1208,6 +1256,7 @@ module.exports = {
     createAdminOrder,
     updateOrder,
     changeOrderStatus,
+    changeCustomerStatus,
     getOrderAuditHistory,
     createOrderPublicLink,
     regenerateOrderPublicLink,

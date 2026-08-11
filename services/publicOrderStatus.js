@@ -21,7 +21,7 @@ function formatPublicLink(order) {
 function formatPublicStatus(order) {
     return {
         orderNumber: order.orderNumber,
-        status: order.status,
+        customerStatus: order.customerStatus || 'order_received',
         customerFullName: order.customerFullName || null,
         requiredDeliveryDate: order.requiredDeliveryDate || null,
         updatedAt: order.updatedAt
@@ -94,7 +94,7 @@ async function getPublicStatusByToken(token, deps = {}) {
     const order = await OrderModel.findOne({
         publicStatusToken: token.trim(),
         publicStatusEnabled: true
-    }).select('orderNumber status customerFullName requiredDeliveryDate updatedAt');
+    }).select('orderNumber customerStatus customerFullName requiredDeliveryDate updatedAt');
 
     if (!order) {
         return null;

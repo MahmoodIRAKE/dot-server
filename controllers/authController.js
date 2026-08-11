@@ -5,6 +5,7 @@ const smsService = require('../services/smsService');
 const verificationCache = require('../services/verificationCache');
 const admin = require("../config/firebase");  // ✅ not "firebase-admin"
 const { organizationCodeFromBody } = require('../utils/organizationCodeFromBody');
+const { updateOwnProfile } = require('../services/updateOwnProfile');
 
 const formatAuthUser = (user) => ({
     _id: user._id,
@@ -424,11 +425,40 @@ const resetPassword = async (req, res) => {
     }
 };
 
+/**
+ * Authenticated user updates their own profile (fullName, phoneNumber).
+ * Available to all roles.
+ */
+const updateProfile = async (req, res) => {
+    try {
+        const { fullName, phoneNumber } = req.body;
+        const user = await updateOwnProfile(req.user.userId, { fullName, phoneNumber });
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            user
+        });
+    } catch (error) {
+        if (error.status === 400 || error.status === 401 || error.status === 404) {
+            return res.status(error.status).json({
+                success: false,
+                error: error.message
+            });
+        }
+        console.error('Error updating own profile:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while updating profile'
+        });
+    }
+};
+
 module.exports = {
     signUp,
     signIn,
     verify,
     forgotPassword,
     resetPassword,
-    verifyForget
+    verifyForget,
+    updateProfile
 };

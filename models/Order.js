@@ -38,6 +38,16 @@ const orderSchema = new mongoose.Schema({
         enum: ['new','waiting for approval','in progress', 'paymentR','DONE', 'delayed', 'declined' ],
 
     },
+    /**
+     * External customer-facing progress (Customer Status Link only).
+     * Independent of internal `status`.
+     */
+    customerStatus: {
+        type: String,
+        default: 'order_received',
+        enum: ['order_received', 'in_production', 'installation', 'completed'],
+        index: true
+    },
     requiredDeliveryDate: {
         type: String,
         required: false

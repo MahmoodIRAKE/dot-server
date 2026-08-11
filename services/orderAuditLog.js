@@ -15,6 +15,7 @@ const AUDITED_FIELDS = [
     'notes',
     'totalPrice',
     'status',
+    'customerStatus',
     'assignedWorkerId',
     'userID',
     'organizationId',

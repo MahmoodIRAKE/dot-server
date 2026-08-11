@@ -105,6 +105,11 @@ if (!orderSrc.includes('publicStatusToken') || !orderSrc.includes('publicStatusE
 } else {
     ok('Order model has public status link fields');
 }
+if (!orderSrc.includes('customerStatus')) {
+    fail('Order model missing customerStatus field');
+} else {
+    ok('Order model has customerStatus');
+}
 
 const serverSrc = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 if (!serverSrc.includes("'/api/public'")) {

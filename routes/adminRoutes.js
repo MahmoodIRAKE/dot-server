@@ -5,6 +5,7 @@ const {
     createAdminOrder,
     updateOrder,
     changeOrderStatus,
+    changeCustomerStatus,
     getOrderAuditHistory,
     createOrderPublicLink,
     regenerateOrderPublicLink,
@@ -85,6 +86,11 @@ router.patch('/orders/:orderId/status',
     authMiddleware,
     authorizeRole(...orderManagers),
     changeOrderStatus);
+
+router.patch('/orders/:orderId/customer-status',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    changeCustomerStatus);
 
 router.patch('/orders/:orderId/worker',
     authMiddleware,

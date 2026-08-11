@@ -6,6 +6,7 @@ const { clientOrdersFilter, clientCanAccessOrder } = require('../utils/organizat
 const { createClientUser, formatCreatedUser } = require('../services/createClientUser');
 const { createClientOrder } = require('../services/createClientOrder');
 const { resolveActor, updateOrderWithAudit } = require('../services/orderAuditLog');
+const { updateOwnProfile } = require('../services/updateOwnProfile');
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
@@ -144,40 +145,21 @@ const orderConfirm = async (req, res )=>{
 // Update client profile
 const updateProfile = async (req, res) => {
     try {
-
-
         const { fullName, phoneNumber } = req.body;
-
-        // Update user profile (organization code is managed by admin)
-        const updatedUser = await User.findByIdAndUpdate(
-            req.user.userId,
-            { fullName, phoneNumber },
-            { new: true, runValidators: true }
-        ).populate('organizationId', 'name organizationCode');
-
-        if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
+        const user = await updateOwnProfile(req.user.userId, { fullName, phoneNumber });
 
         res.status(200).json({
             success: true,
             message: 'Profile updated successfully',
-            user: {
-                userId: updatedUser._id,
-                username: updatedUser.username,
-                fullName: updatedUser.fullName,
-                role: updatedUser.role,
-                phoneNumber: updatedUser.phoneNumber,
-                organizationCode: updatedUser.organizationCode,
-                organizationId: updatedUser.organizationId?._id || updatedUser.organizationId,
-                organization: updatedUser.organizationId
-            }
+            user
         });
-
     } catch (error) {
+        if (error.status === 400 || error.status === 401 || error.status === 404) {
+            return res.status(error.status).json({
+                success: false,
+                error: error.message
+            });
+        }
         console.error('Error updating profile:', error);
         res.status(500).json({
             success: false,
