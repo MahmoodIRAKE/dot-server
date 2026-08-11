@@ -5,10 +5,11 @@ const Order = require('../models/Order');
  * Falls back to userID-only for legacy users without an organization.
  */
 function clientOrdersFilter(reqUser) {
+    const notArchived = { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] };
     if (reqUser.organizationId) {
-        return { organizationId: reqUser.organizationId };
+        return { organizationId: reqUser.organizationId, ...notArchived };
     }
-    return { userID: reqUser.userId };
+    return { userID: reqUser.userId, ...notArchived };
 }
 
 /**

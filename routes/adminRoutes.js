@@ -10,6 +10,9 @@ const {
     regenerateOrderPublicLink,
     revokeOrderPublicLink,
     getOrderPrint,
+    archiveOrder,
+    unarchiveOrder,
+    deleteArchivedOrder,
     addNewUser,
     updateUser,
     deleteUser,
@@ -87,6 +90,22 @@ router.patch('/orders/:orderId/worker',
     authMiddleware,
     authorizeRole(...orderManagers),
     assignOrderToWorker);
+
+// Archive / delete — admin only (not miniAdmin)
+router.post('/orders/:orderId/archive',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    archiveOrder);
+
+router.post('/orders/:orderId/unarchive',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    unarchiveOrder);
+
+router.delete('/orders/:orderId',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    deleteArchivedOrder);
 
 // Users — read for admin + miniAdmin; mutations admin only
 router.get('/users',

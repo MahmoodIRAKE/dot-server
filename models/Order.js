@@ -79,6 +79,16 @@ const orderSchema = new mongoose.Schema({
     publicStatusEnabled: {
         type: Boolean,
         default: false
+    },
+    /** When true — order is in the admin archive. */
+    isArchived: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    archivedAt: {
+        type: Date,
+        required: false
     }
 }, { timestamps: true });
 

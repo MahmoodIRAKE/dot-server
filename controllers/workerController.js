@@ -2,7 +2,10 @@ const Order = require('../models/Order');
 
 const getWorkerOrders = async (req, res) => {
     try {
-        const orders = await Order.find({ assignedWorkerId: req.user.userId })
+        const orders = await Order.find({
+            assignedWorkerId: req.user.userId,
+            $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
+        })
             .populate('userID', 'username fullName organizationCode phoneNumber')
             .sort({ createdAt: -1 });
 

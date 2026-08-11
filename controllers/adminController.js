@@ -16,6 +16,7 @@ const {
     regeneratePublicLink,
     revokePublicLink
 } = require('../services/publicOrderStatus');
+const OrderChangeLog = require('../models/OrderChangeLog');
 const { getOrderPrintData } = require('../services/orderPrint');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require('../config/firebase');
@@ -78,9 +79,12 @@ function formatAdminUserResponse(user) {
 // Get all orders (Admin only)
 const getAllOrders = async (req, res) => {
     try {
+        const archived = String(req.query.archived || '').toLowerCase() === 'true';
+        const filter = archived
+            ? { isArchived: true }
+            : { $or: [{ isArchived: false }, { isArchived: { $exists: false } }] };
 
-        // Get all orders with user information
-        const orders = await Order.find()
+        const orders = await Order.find(filter)
             .populate('userID', clientUserPopulateFields)
             .populate('organizationId', organizationPopulateFields)
             .populate('assignedWorkerId', workerPopulateFields)
@@ -88,9 +92,9 @@ const getAllOrders = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            orders: orders
+            archived,
+            orders
         });
-
     } catch (error) {
         console.error('Error fetching orders:', error);
         res.status(500).json({
@@ -1103,6 +1107,101 @@ const getOrderPrint = async (req, res) => {
     }
 };
 
+const setOrderArchived = async (req, res, archived) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order ID format'
+            });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        if (Boolean(order.isArchived) === archived) {
+            return res.status(200).json({
+                success: true,
+                message: archived ? 'Order is already archived' : 'Order is already active',
+                order
+            });
+        }
+
+        order.isArchived = archived;
+        order.archivedAt = archived ? new Date() : null;
+        await order.save();
+
+        const populated = await Order.findById(orderId)
+            .populate('userID', clientUserPopulateFields)
+            .populate('organizationId', organizationPopulateFields)
+            .populate('assignedWorkerId', workerPopulateFields);
+
+        res.status(200).json({
+            success: true,
+            message: archived ? 'Order moved to archive' : 'Order restored from archive',
+            order: populated
+        });
+    } catch (error) {
+        console.error('Error updating order archive state:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while updating archive state'
+        });
+    }
+};
+
+const archiveOrder = (req, res) => setOrderArchived(req, res, true);
+const unarchiveOrder = (req, res) => setOrderArchived(req, res, false);
+
+const deleteArchivedOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order ID format'
+            });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        if (!order.isArchived) {
+            return res.status(400).json({
+                success: false,
+                error: 'Only archived orders can be deleted. Move the order to archive first.'
+            });
+        }
+
+        await Files.deleteMany({ orderId: order._id });
+        await OrderChangeLog.deleteMany({ orderId: order._id });
+        await Order.findByIdAndDelete(order._id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Archived order deleted successfully',
+            orderId: order._id
+        });
+    } catch (error) {
+        console.error('Error deleting archived order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while deleting order'
+        });
+    }
+};
+
 module.exports = {
     getAllOrders,
     getOrderDetails,
@@ -1114,6 +1213,9 @@ module.exports = {
     regenerateOrderPublicLink,
     revokeOrderPublicLink,
     getOrderPrint,
+    archiveOrder,
+    unarchiveOrder,
+    deleteArchivedOrder,
     addNewUser,
     updateUser,
     deleteUser,
