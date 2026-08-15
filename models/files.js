@@ -21,8 +21,13 @@ const files = new mongoose.Schema({
     },
     fileCategory: {
         type: String,
-        enum: ['payment', 'work'],
+        enum: ['payment', 'work', 'public'],
         required: true
+    },
+    /** Tokenized download URL for public-status images (no login). */
+    publicUrl: {
+        type: String,
+        required: false
     },
 
     notes: { type: String },

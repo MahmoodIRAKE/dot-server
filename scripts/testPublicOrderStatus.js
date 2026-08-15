@@ -68,10 +68,22 @@ function assert(condition, msg) {
     assert(!Object.prototype.hasOwnProperty.call(dto, 'status'), 'public has no internal status');
     assertEqual(dto.customerFullName, 'John Doe', 'public has name');
     assertEqual(dto.requiredDeliveryDate, '2026-07-01', 'public has delivery date');
+    assert(Array.isArray(dto.images), 'public has images array');
+    assertEqual(dto.images.length, 0, 'public images empty by default');
     assert(!Object.prototype.hasOwnProperty.call(dto, 'customerPhoneNumber'), 'no phone');
     assert(!Object.prototype.hasOwnProperty.call(dto, 'totalPrice'), 'no price');
     assert(!Object.prototype.hasOwnProperty.call(dto, 'notes'), 'no notes');
     assert(!Object.prototype.hasOwnProperty.call(dto, 'assignedWorkerId'), 'no worker');
+}
+
+{
+    const dto = formatPublicStatus(
+        { orderNumber: 1, customerStatus: 'completed' },
+        [{ publicUrl: 'https://cdn.example/img.jpg', notes: 'front' }, { publicUrl: '', notes: 'skip' }]
+    );
+    assertEqual(dto.images.length, 1, 'skips files without publicUrl');
+    assertEqual(dto.images[0].url, 'https://cdn.example/img.jpg', 'public image url');
+    assertEqual(dto.images[0].notes, 'front', 'public image notes');
 }
 
 // --- link formatting ---
@@ -125,6 +137,20 @@ function assert(condition, msg) {
         })
     };
 
+    const mockFiles = {
+        find() {
+            return {
+                select() {
+                    return {
+                        sort() {
+                            return Promise.resolve([]);
+                        }
+                    };
+                }
+            };
+        }
+    };
+
     const mockOrder = {
         findById(id) {
             return Promise.resolve(store[id] || null);
@@ -168,30 +194,32 @@ function assert(condition, msg) {
     assertEqual(again.token, firstToken, 'ensure keeps stable token');
 
     // public lookup works
-    const status = await getPublicStatusByToken(firstToken, { Order: mockOrder });
+    const status = await getPublicStatusByToken(firstToken, { Order: mockOrder, Files: mockFiles });
     assert(status, 'public status found');
     assertEqual(status.orderNumber, 42, 'public status orderNumber');
     assertEqual(status.customerStatus, 'order_received', 'public status customerStatus');
+    assert(Array.isArray(status.images), 'public status images array');
+    assertEqual(status.images.length, 0, 'public status no images by default');
     assert(!Object.prototype.hasOwnProperty.call(status, 'status'), 'public status no internal status');
     assert(!Object.prototype.hasOwnProperty.call(status, 'totalPrice'), 'public status no price');
 
-    const orgStatus = await getPublicStatusByToken(orgCreated.token, { Order: mockOrder });
+    const orgStatus = await getPublicStatusByToken(orgCreated.token, { Order: mockOrder, Files: mockFiles });
     assert(orgStatus, 'public status found for non-private order');
     assertEqual(orgStatus.orderNumber, 99, 'non-private public status orderNumber');
 
     // regenerate invalidates old token
     const regenerated = await regeneratePublicLink(privateId, { Order: mockOrder });
     assert(regenerated.token !== firstToken, 'regenerate issues new token');
-    const oldGone = await getPublicStatusByToken(firstToken, { Order: mockOrder });
+    const oldGone = await getPublicStatusByToken(firstToken, { Order: mockOrder, Files: mockFiles });
     assertEqual(oldGone, null, 'old token no longer resolves');
-    const newOk = await getPublicStatusByToken(regenerated.token, { Order: mockOrder });
+    const newOk = await getPublicStatusByToken(regenerated.token, { Order: mockOrder, Files: mockFiles });
     assert(newOk, 'new token resolves');
 
     // revoke → 404
     const revoked = await revokePublicLink(privateId, { Order: mockOrder });
     assertEqual(revoked.enabled, false, 'revoke disables');
     assertEqual(revoked.token, null, 'revoke clears token');
-    const afterRevoke = await getPublicStatusByToken(regenerated.token, { Order: mockOrder });
+    const afterRevoke = await getPublicStatusByToken(regenerated.token, { Order: mockOrder, Files: mockFiles });
     assertEqual(afterRevoke, null, 'revoked token → null');
 
     // empty token
@@ -215,6 +243,9 @@ function assert(condition, msg) {
     assert(orderModel.includes('publicStatusToken'), 'Order has publicStatusToken');
     assert(orderModel.includes('publicStatusEnabled'), 'Order has publicStatusEnabled');
     assert(orderModel.includes('customerStatus'), 'Order has customerStatus');
+
+    const filesModel = fs.readFileSync(path.join(__dirname, '../models/files.js'), 'utf8');
+    assert(filesModel.includes("'public'"), 'Files model allows public category');
 
     if (failed > 0) {
         console.error(`\n${failed} public status link check(s) failed.`);

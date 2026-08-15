@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const Order = require('../models/Order');
+const Files = require('../models/files');
 
 const PUBLIC_PATH_PREFIX = '/order-status';
 
@@ -18,13 +19,50 @@ function formatPublicLink(order) {
     };
 }
 
-function formatPublicStatus(order) {
+function formatPublicImages(files) {
+    if (!Array.isArray(files)) return [];
+    return files
+        .map((file) => {
+            const url = file?.publicUrl || (typeof file?.filePath === 'string' && file.filePath.startsWith('http')
+                ? file.filePath
+                : null);
+            if (!url) return null;
+            return {
+                url,
+                notes: file.notes || null
+            };
+        })
+        .filter(Boolean);
+}
+
+async function resolvePublicImageUrl(file) {
+    if (file?.publicUrl) return file.publicUrl;
+    if (typeof file?.filePath === 'string' && file.filePath.startsWith('http')) {
+        return file.filePath;
+    }
+    if (!file?.filePath) return null;
+    try {
+        const admin = require('../config/firebase');
+        const bucket = admin.storage().bucket();
+        const [url] = await bucket.file(file.filePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000
+        });
+        return url || null;
+    } catch (error) {
+        console.warn('Could not sign public image URL:', file.filePath, error.message);
+        return null;
+    }
+}
+
+function formatPublicStatus(order, images = []) {
     return {
         orderNumber: order.orderNumber,
         customerStatus: order.customerStatus || 'order_received',
         customerFullName: order.customerFullName || null,
         requiredDeliveryDate: order.requiredDeliveryDate || null,
-        updatedAt: order.updatedAt
+        updatedAt: order.updatedAt,
+        images: formatPublicImages(images)
     };
 }
 
@@ -86,6 +124,7 @@ async function revokePublicLink(orderId, deps = {}) {
  */
 async function getPublicStatusByToken(token, deps = {}) {
     const OrderModel = deps.Order || Order;
+    const FilesModel = deps.Files || Files;
 
     if (!token || typeof token !== 'string' || !token.trim()) {
         return null;
@@ -94,13 +133,37 @@ async function getPublicStatusByToken(token, deps = {}) {
     const order = await OrderModel.findOne({
         publicStatusToken: token.trim(),
         publicStatusEnabled: true
-    }).select('orderNumber customerStatus customerFullName requiredDeliveryDate updatedAt');
+    }).select('_id orderNumber customerStatus customerFullName requiredDeliveryDate updatedAt');
 
     if (!order) {
         return null;
     }
 
-    return formatPublicStatus(order);
+    let files = [];
+    try {
+        const query = FilesModel.find({
+            fileCategory: 'public',
+            $or: [{ orderId: order._id }, { orderId: String(order._id) }]
+        });
+        if (query && typeof query.select === 'function') {
+            files = await query.select('publicUrl filePath notes').sort({ createdAt: 1 });
+        } else {
+            files = await query;
+        }
+    } catch (error) {
+        console.warn('Error loading public images for order status:', error.message);
+        files = [];
+    }
+
+    const images = [];
+    for (const file of files || []) {
+        const url = await resolvePublicImageUrl(file);
+        if (url) {
+            images.push({ publicUrl: url, notes: file.notes || null });
+        }
+    }
+
+    return formatPublicStatus(order, images);
 }
 
 module.exports = {
@@ -108,6 +171,7 @@ module.exports = {
     generateToken,
     formatPublicLink,
     formatPublicStatus,
+    formatPublicImages,
     ensurePublicLink,
     regeneratePublicLink,
     revokePublicLink,
