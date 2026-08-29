@@ -79,6 +79,23 @@ const orderSchema = new mongoose.Schema({
 
     notes: { type: String },
 
+    /**
+     * One order can include multiple works. Top-level description/height/width/jobRef/notes
+     * stay in sync with works[0] for older clients.
+     */
+    works: {
+        type: [
+            {
+                description: { type: String, required: false },
+                height: { type: String, required: false },
+                width: { type: String, required: false },
+                jobRef: { type: String, required: false },
+                notes: { type: String, required: false }
+            }
+        ],
+        default: undefined
+    },
+
     /** Unguessable token for public private-order status links (sparse unique). */
     publicStatusToken: {
         type: String,

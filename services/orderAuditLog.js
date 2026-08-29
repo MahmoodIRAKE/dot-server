@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const OrderChangeLog = require('../models/OrderChangeLog');
+const { applyWorksFromBody, syncWorksOnUpdate } = require('../utils/orderWorks');
 
 /** Business fields that may be audited. */
 const AUDITED_FIELDS = [
@@ -13,6 +14,7 @@ const AUDITED_FIELDS = [
     'width',
     'jobRef',
     'notes',
+    'works',
     'totalPrice',
     'status',
     'customerStatus',
@@ -235,14 +237,21 @@ async function updateOrderWithAudit({ orderId, updateData, actor }, deps = {}) {
     }
 
     const plainExisting = toPlainOrder(existing);
-    const changes = computeFieldChanges(plainExisting, updateData);
+    let nextUpdate = { ...updateData };
+    if (Array.isArray(nextUpdate.works)) {
+        Object.assign(nextUpdate, applyWorksFromBody(nextUpdate, { syncNotesFromFirstWork: false }));
+    } else {
+        nextUpdate = syncWorksOnUpdate(plainExisting, nextUpdate);
+    }
+
+    const changes = computeFieldChanges(plainExisting, nextUpdate);
     if (changes.length === 0) {
         return { order: existing, changes: [] };
     }
 
     const updatedOrder = await OrderModel.findByIdAndUpdate(
         orderId,
-        { $set: updateData },
+        { $set: nextUpdate },
         { new: true, runValidators: true }
     );
 

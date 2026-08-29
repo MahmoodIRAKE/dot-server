@@ -25,6 +25,8 @@ const formatAuthUser = (user) => ({
  * @param {Object} user - User object
  * @returns {string} - JWT token
  */
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
 const generateToken = (user) => {
     return jwt.sign(
         { 
@@ -33,7 +35,7 @@ const generateToken = (user) => {
             role: user.role 
         },
         process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
+        { expiresIn: JWT_EXPIRES_IN }
     );
 };
 const generateForgetToken = (user) => {
@@ -44,7 +46,7 @@ const generateForgetToken = (user) => {
             role: user.role
         },
         process.env.JWT_SECRET + 5,
-        { expiresIn: '7d' }
+        { expiresIn: JWT_EXPIRES_IN }
     );
 };
 
@@ -306,6 +308,7 @@ const signIn = async (req, res) => {
             success: true,
             message: 'Login successful',
             token,
+            expiresIn: JWT_EXPIRES_IN,
             user: formatAuthUser(user)
         });
 

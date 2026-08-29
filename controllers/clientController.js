@@ -82,7 +82,8 @@ const updateOrder = async (req, res) => {
             height,
             width,
             jobRef,
-            notes
+            notes,
+            works
         } = req.body;
 
         const updateData = {};
@@ -95,6 +96,7 @@ const updateOrder = async (req, res) => {
         if (width !== undefined) updateData.width = width;
         if (jobRef !== undefined) updateData.jobRef = jobRef;
         if (notes !== undefined) updateData.notes = notes;
+        if (works !== undefined) updateData.works = works;
 
         const actor = resolveActor(req.user);
         const { order: updatedOrder } = await updateOrderWithAudit({

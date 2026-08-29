@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 function extractBearerToken(req) {
     const authHeader = req.header('Authorization');
@@ -19,7 +20,7 @@ function generateClientToken(user) {
             role: user.role
         },
         JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: JWT_EXPIRES_IN }
     );
 }
 
@@ -116,6 +117,7 @@ function formatOpenApiUser(user) {
 
 module.exports = {
     JWT_SECRET,
+    JWT_EXPIRES_IN,
     extractBearerToken,
     generateClientToken,
     authenticateClientByCredentials,

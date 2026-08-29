@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const { saveNewOrderWithAudit } = require('./orderAuditLog');
+const { applyWorksFromBody, sanitizeWork, WORK_KEYS } = require('../utils/orderWorks');
 
 const ORDER_FIELD_KEYS = [
     'customerFullName',
@@ -10,7 +11,15 @@ const ORDER_FIELD_KEYS = [
     'height',
     'width',
     'jobRef',
-    'notes'
+    'notes',
+    'works'
+];
+
+const PRIVATE_CUSTOMER_KEYS = [
+    'customerFullName',
+    'customerPhoneNumber',
+    'customerAddress',
+    'requiredDeliveryDate'
 ];
 
 function pickOrderFields(body) {
@@ -20,6 +29,7 @@ function pickOrderFields(body) {
             fields[key] = body[key];
         }
     }
+    Object.assign(fields, applyWorksFromBody(body));
     return fields;
 }
 
@@ -70,11 +80,21 @@ async function createClientOrder(user, body, actor = null) {
 
 function validatePrivateOrderFields(fields) {
     const missing = [];
-    for (const key of ORDER_FIELD_KEYS) {
+    for (const key of PRIVATE_CUSTOMER_KEYS) {
         if (!fields[key]) {
             missing.push(key);
         }
     }
+    const works = Array.isArray(fields.works) && fields.works.length > 0
+        ? fields.works.map(sanitizeWork)
+        : [sanitizeWork(fields)];
+    works.forEach((work, index) => {
+        for (const key of WORK_KEYS) {
+            if (!work[key] || !String(work[key]).trim()) {
+                missing.push(works.length > 1 ? `works[${index}].${key}` : key);
+            }
+        }
+    });
     return missing;
 }
 
@@ -121,6 +141,7 @@ function formatOpenOrder(order) {
         width: order.width,
         jobRef: order.jobRef,
         notes: order.notes,
+        works: order.works,
         status: order.status,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt

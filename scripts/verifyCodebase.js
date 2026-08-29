@@ -110,6 +110,43 @@ if (!orderSrc.includes('customerStatus')) {
 } else {
     ok('Order model has customerStatus');
 }
+if (!orderSrc.includes('works:')) {
+    fail('Order model missing works array');
+} else {
+    ok('Order model has works array');
+}
+
+const {
+    getOrderWorks,
+    applyWorksFromBody,
+    syncWorksOnUpdate
+} = require('../utils/orderWorks');
+const fromLegacy = getOrderWorks({ description: 'A', height: '10', width: '20', jobRef: 'J1', notes: 'n' });
+if (fromLegacy.length !== 1 || fromLegacy[0].description !== 'A') {
+    fail('getOrderWorks should hydrate a single work from legacy fields');
+} else {
+    ok('getOrderWorks hydrates legacy fields');
+}
+const applied = applyWorksFromBody({
+    works: [
+        { description: 'One', height: '1', width: '2', jobRef: 'A', notes: 'n1' },
+        { description: 'Two', height: '3', width: '4', jobRef: 'B', notes: 'n2' }
+    ]
+});
+if (!applied.works || applied.works.length !== 2 || applied.description !== 'One' || applied.jobRef !== 'A') {
+    fail('applyWorksFromBody should flatten first work');
+} else {
+    ok('applyWorksFromBody flattens first work');
+}
+const synced = syncWorksOnUpdate(
+    { works: [{ description: 'One', height: '1', width: '2', jobRef: 'A', notes: '' }] },
+    { width: '9' }
+);
+if (!synced.works || synced.works[0].width !== '9') {
+    fail('syncWorksOnUpdate should patch works[0]');
+} else {
+    ok('syncWorksOnUpdate patches first work');
+}
 
 const serverSrc = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 if (!serverSrc.includes("'/api/public'")) {

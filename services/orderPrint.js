@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Files = require('../models/files');
+const { getOrderWorks, formatWorksText } = require('../utils/orderWorks');
 
 const PRINT_TYPES = ['technical', 'field', 'commercial'];
 
@@ -35,6 +36,19 @@ function workerName(order) {
         return worker.fullName || worker.username || null;
     }
     return null;
+}
+
+function workPrintFields(order) {
+    const works = getOrderWorks(order);
+    const first = works[0] || {};
+    return {
+        jobRef: first.jobRef || order.jobRef || null,
+        height: first.height || order.height || null,
+        width: first.width || order.width || null,
+        description: first.description || order.description || null,
+        notes: order.notes || first.notes || null,
+        worksSummary: works.length > 1 ? formatWorksText(order) || null : null
+    };
 }
 
 function buildMeta(order) {
@@ -74,14 +88,10 @@ async function getTechnicalPrintData(orderId) {
         titleHe: 'גיליון טכני להזמנה',
         meta: buildMeta(order),
         data: {
-            jobRef: order.jobRef || null,
+            ...workPrintFields(order),
             status: order.status || null,
             requiredDeliveryDate: order.requiredDeliveryDate || null,
             customerFullName: order.customerFullName || null,
-            height: order.height || null,
-            width: order.width || null,
-            description: order.description || null,
-            notes: order.notes || null,
             assignedWorker: workerName(order),
             organizationName: organizationName(order)
         },
@@ -108,11 +118,7 @@ async function getFieldPrintData(orderId) {
             customerPhoneNumber: order.customerPhoneNumber || null,
             customerAddress: order.customerAddress || null,
             requiredDeliveryDate: order.requiredDeliveryDate || null,
-            jobRef: order.jobRef || null,
-            height: order.height || null,
-            width: order.width || null,
-            description: order.description || null,
-            notes: order.notes || null,
+            ...workPrintFields(order),
             assignedWorker: workerName(order),
             status: order.status || null
         }
@@ -138,9 +144,7 @@ async function getCommercialPrintData(orderId) {
             totalPrice: order.totalPrice || null,
             status: order.status || null,
             requiredDeliveryDate: order.requiredDeliveryDate || null,
-            jobRef: order.jobRef || null,
-            description: order.description || null,
-            notes: order.notes || null,
+            ...workPrintFields(order),
             assignedWorker: workerName(order),
             clientType: order.isPrivateClient ? 'לקוח פרטי' : 'לקוח ארגוני'
         }

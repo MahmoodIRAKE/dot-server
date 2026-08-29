@@ -186,6 +186,7 @@ const updateOrder = async (req, res) => {
             width,
             jobRef,
             notes,
+            works,
             totalPrice,
             status
         } = req.body;
@@ -231,6 +232,7 @@ const updateOrder = async (req, res) => {
         if (width !== undefined) updateData.width = width;
         if (jobRef !== undefined) updateData.jobRef = jobRef;
         if (notes !== undefined) updateData.notes = notes;
+        if (works !== undefined) updateData.works = works;
         if (totalPrice !== undefined) updateData.totalPrice = totalPrice;
         if (status !== undefined) updateData.status = status;
 
