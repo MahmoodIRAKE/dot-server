@@ -6,7 +6,9 @@ const {
     updateProfile,
     orderConfirm,
     getOrganizationUsers,
-    addOrganizationUser
+    addOrganizationUser,
+    getOrderPublicLink,
+    createOrderPublicLink
 } = require('../controllers/clientController');
 const {changeOrderStatus} = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -26,6 +28,16 @@ router.post('/orders',
     authorizeRole("client"),
     createOrder
 );
+
+router.get('/orders/:orderId/public-link',
+    authMiddleware,
+    authorizeRole('client'),
+    getOrderPublicLink);
+
+router.post('/orders/:orderId/public-link',
+    authMiddleware,
+    authorizeRole('client'),
+    createOrderPublicLink);
 
 // Update order
 router.put('/orders/:orderId',

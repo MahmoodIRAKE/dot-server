@@ -36,7 +36,7 @@ function getOrderWorks(order) {
     return [sanitizeWork(order)];
 }
 
-function applyWorksFromBody(body, { syncNotesFromFirstWork = true } = {}) {
+function applyWorksFromBody(body, { syncNotesFromFirstWork = false } = {}) {
     const result = {};
     if (!body || !Array.isArray(body.works)) {
         if (body && body.notes !== undefined) {

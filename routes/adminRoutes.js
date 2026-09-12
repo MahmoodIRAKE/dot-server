@@ -7,6 +7,7 @@ const {
     changeOrderStatus,
     changeCustomerStatus,
     getOrderAuditHistory,
+    getOrderPublicLink,
     createOrderPublicLink,
     regenerateOrderPublicLink,
     revokeOrderPublicLink,
@@ -56,6 +57,11 @@ router.get('/orders/:orderId/print/:printType',
     authMiddleware,
     authorizeRole(...orderManagers),
     getOrderPrint);
+
+router.get('/orders/:orderId/public-link',
+    authMiddleware,
+    authorizeRole(...orderManagers),
+    getOrderPublicLink);
 
 router.post('/orders/:orderId/public-link',
     authMiddleware,

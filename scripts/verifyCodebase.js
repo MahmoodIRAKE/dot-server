@@ -138,6 +138,20 @@ if (!applied.works || applied.works.length !== 2 || applied.description !== 'One
 } else {
     ok('applyWorksFromBody flattens first work');
 }
+if (applied.notes !== undefined) {
+    fail('applyWorksFromBody should not copy work notes onto order notes');
+} else {
+    ok('applyWorksFromBody keeps order notes independent');
+}
+const appliedWithOrderNotes = applyWorksFromBody({
+    notes: 'order note',
+    works: [{ description: 'One', height: '1', width: '2', jobRef: 'A', notes: 'job note' }]
+});
+if (appliedWithOrderNotes.notes !== 'order note' || appliedWithOrderNotes.works[0].notes !== 'job note') {
+    fail('order notes and job notes should be saved separately');
+} else {
+    ok('order notes and job notes stay separate');
+}
 const synced = syncWorksOnUpdate(
     { works: [{ description: 'One', height: '1', width: '2', jobRef: 'A', notes: '' }] },
     { width: '9' }

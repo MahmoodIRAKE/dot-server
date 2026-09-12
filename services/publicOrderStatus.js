@@ -82,6 +82,14 @@ async function loadOrder(orderId, deps = {}) {
 }
 
 /**
+ * Return the existing public link without creating or enabling one.
+ */
+async function getPublicLink(orderId, deps = {}) {
+    const order = await loadOrder(orderId, deps);
+    return formatPublicLink(order);
+}
+
+/**
  * Get existing public link or create one (enable + token).
  * Available for all order types (private and organization).
  */
@@ -172,6 +180,7 @@ module.exports = {
     formatPublicLink,
     formatPublicStatus,
     formatPublicImages,
+    getPublicLink,
     ensurePublicLink,
     regeneratePublicLink,
     revokePublicLink,

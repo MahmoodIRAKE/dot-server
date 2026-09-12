@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
@@ -7,6 +8,7 @@ const { createClientUser, formatCreatedUser } = require('../services/createClien
 const { createClientOrder } = require('../services/createClientOrder');
 const { resolveActor, updateOrderWithAudit } = require('../services/orderAuditLog');
 const { updateOwnProfile } = require('../services/updateOwnProfile');
+const { formatPublicLink, ensurePublicLink } = require('../services/publicOrderStatus');
 
 // Create new order (Client only)
 const createOrder = async (req, res) => {
@@ -253,6 +255,68 @@ const addOrganizationUser = async (req, res) => {
     }
 };
 
+const denyClientOrder = (res) =>
+    res.status(404).json({
+        success: false,
+        error: 'Order not found'
+    });
+
+const loadClientAccessibleOrder = async (req, res) => {
+    const { orderId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        denyClientOrder(res);
+        return null;
+    }
+
+    const order = await Order.findById(orderId);
+    if (!clientCanAccessOrder(req.user, order)) {
+        denyClientOrder(res);
+        return null;
+    }
+    return order;
+};
+
+// Existing public status link for an order the client may view (does not create)
+const getOrderPublicLink = async (req, res) => {
+    try {
+        const order = await loadClientAccessibleOrder(req, res);
+        if (!order) return;
+
+        res.status(200).json({
+            success: true,
+            message: 'Public status link',
+            link: formatPublicLink(order)
+        });
+    } catch (error) {
+        console.error('Error loading public order link:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while loading public order link'
+        });
+    }
+};
+
+// Get or create public status link (client cannot regenerate, revoke, or change status)
+const createOrderPublicLink = async (req, res) => {
+    try {
+        const order = await loadClientAccessibleOrder(req, res);
+        if (!order) return;
+
+        const link = await ensurePublicLink(order._id);
+        res.status(200).json({
+            success: true,
+            message: 'Public status link ready',
+            link
+        });
+    } catch (error) {
+        console.error('Error creating public order link:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while creating public order link'
+        });
+    }
+};
+
 module.exports = {
     createOrder,
     getClientOrders,
@@ -260,5 +324,7 @@ module.exports = {
     updateProfile,
     orderConfirm,
     getOrganizationUsers,
-    addOrganizationUser
+    addOrganizationUser,
+    getOrderPublicLink,
+    createOrderPublicLink
 };

@@ -8,6 +8,7 @@ const {
     generateToken,
     formatPublicLink,
     formatPublicStatus,
+    getPublicLink,
     ensurePublicLink,
     regeneratePublicLink,
     revokePublicLink,
@@ -177,6 +178,10 @@ function assert(condition, msg) {
     }
     assert(missing, 'missing order → 404');
 
+    const unread = await getPublicLink(privateId, { Order: mockOrder });
+    assertEqual(unread.enabled, false, 'getPublicLink does not create a link');
+    assertEqual(unread.token, null, 'getPublicLink leaves token empty');
+
     // ensure works for organization (non-private) orders too
     const orgCreated = await ensurePublicLink(publicClientId, { Order: mockOrder });
     assert(orgCreated.enabled, 'ensure enables link for non-private order');
@@ -229,9 +234,16 @@ function assert(condition, msg) {
     // routes wired
     const adminRoutes = fs.readFileSync(path.join(__dirname, '../routes/adminRoutes.js'), 'utf8');
     assert(adminRoutes.includes("'/orders/:orderId/customer-status'"), 'admin customer-status route');
-    assert(adminRoutes.includes("'/orders/:orderId/public-link'"), 'admin public-link route');
+    assert(adminRoutes.includes("router.get('/orders/:orderId/public-link'"), 'admin GET public-link route');
+    assert(adminRoutes.includes("router.post('/orders/:orderId/public-link'"), 'admin POST public-link route');
     assert(adminRoutes.includes("'/orders/:orderId/public-link/regenerate'"), 'admin regenerate route');
     assert(adminRoutes.includes('revokeOrderPublicLink'), 'admin revoke wired');
+
+    const clientRoutes = fs.readFileSync(path.join(__dirname, '../routes/clientRoutes.js'), 'utf8');
+    assert(clientRoutes.includes("router.get('/orders/:orderId/public-link'"), 'client GET public-link route');
+    assert(clientRoutes.includes("router.post('/orders/:orderId/public-link'"), 'client POST public-link route');
+    assert(!clientRoutes.includes('regenerate'), 'client has no regenerate route');
+    assert(!clientRoutes.includes('revoke'), 'client has no revoke route');
 
     const publicRoutes = fs.readFileSync(path.join(__dirname, '../routes/publicRoutes.js'), 'utf8');
     assert(publicRoutes.includes("'/orders/status/:token'"), 'public status route');

@@ -12,6 +12,7 @@ const {
     getOrderAuditLogs
 } = require('../services/orderAuditLog');
 const {
+    getPublicLink,
     ensurePublicLink,
     regeneratePublicLink,
     revokePublicLink
@@ -414,6 +415,28 @@ function handlePublicLinkError(res, error, actionLabel) {
         error: `Internal server error while ${actionLabel} public order link`
     });
 }
+
+// Read existing public status link without creating one (Admin / miniAdmin)
+const getOrderPublicLink = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order id'
+            });
+        }
+
+        const link = await getPublicLink(orderId);
+        res.status(200).json({
+            success: true,
+            message: 'Public status link',
+            link
+        });
+    } catch (error) {
+        return handlePublicLinkError(res, error, 'loading');
+    }
+};
 
 // Get or create a public status link for any order (Admin / miniAdmin)
 const createOrderPublicLink = async (req, res) => {
@@ -1260,6 +1283,7 @@ module.exports = {
     changeOrderStatus,
     changeCustomerStatus,
     getOrderAuditHistory,
+    getOrderPublicLink,
     createOrderPublicLink,
     regenerateOrderPublicLink,
     revokeOrderPublicLink,

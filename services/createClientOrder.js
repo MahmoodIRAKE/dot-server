@@ -1,6 +1,8 @@
 const Order = require('../models/Order');
 const { saveNewOrderWithAudit } = require('./orderAuditLog');
-const { applyWorksFromBody, sanitizeWork, WORK_KEYS } = require('../utils/orderWorks');
+const { applyWorksFromBody, sanitizeWork } = require('../utils/orderWorks');
+
+const PRIVATE_WORK_REQUIRED_KEYS = ['description', 'height', 'width', 'jobRef'];
 
 const ORDER_FIELD_KEYS = [
     'customerFullName',
@@ -89,7 +91,7 @@ function validatePrivateOrderFields(fields) {
         ? fields.works.map(sanitizeWork)
         : [sanitizeWork(fields)];
     works.forEach((work, index) => {
-        for (const key of WORK_KEYS) {
+        for (const key of PRIVATE_WORK_REQUIRED_KEYS) {
             if (!work[key] || !String(work[key]).trim()) {
                 missing.push(works.length > 1 ? `works[${index}].${key}` : key);
             }

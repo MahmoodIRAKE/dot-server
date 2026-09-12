@@ -77,11 +77,12 @@ const orderSchema = new mongoose.Schema({
         required: false
     },
 
-    notes: { type: String },
+    /** Free-text notes for the order (פרטי הזמנה). Independent of works[].notes. */
+    notes: { type: String, required: false },
 
     /**
-     * One order can include multiple works. Top-level description/height/width/jobRef/notes
-     * stay in sync with works[0] for older clients.
+     * One order can include multiple works. Top-level description/height/width/jobRef
+     * stay in sync with works[0] for older clients. works[].notes is per-job (פרטי עבודה).
      */
     works: {
         type: [
