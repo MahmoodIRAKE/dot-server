@@ -1,6 +1,7 @@
 const express = require('express');
 const {
     getAllOrders,
+    getOrderStatistics,
     getOrderDetails,
     createAdminOrder,
     updateOrder,
@@ -36,6 +37,12 @@ const router = express.Router();
 const adminOnly = ['admin', 'superAdmin'];
 /** Admin + miniAdmin: orders + read-only clients/orgs/users */
 const orderManagers = ['admin', 'superAdmin', 'miniAdmin'];
+
+// Statistics — full admin only
+router.get('/statistics',
+    authMiddleware,
+    authorizeRole(...adminOnly),
+    getOrderStatistics);
 
 // Orders — admin + miniAdmin
 router.get('/orders',

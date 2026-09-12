@@ -20,6 +20,7 @@ const {
 const OrderChangeLog = require('../models/OrderChangeLog');
 const { getOrderPrintData } = require('../services/orderPrint');
 const { isValidCustomerStatus } = require('../constants/customerStatus');
+const { getOrderStatistics: loadOrderStatistics } = require('../services/orderStatistics');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const admin = require('../config/firebase');
 
@@ -1275,8 +1276,32 @@ const deleteArchivedOrder = async (req, res) => {
     }
 };
 
+const getOrderStatistics = async (req, res) => {
+    try {
+        const period = req.query.period || 'month';
+        const statistics = await loadOrderStatistics(period);
+        res.status(200).json({
+            success: true,
+            statistics
+        });
+    } catch (error) {
+        if (error.status === 400) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+        console.error('Error loading order statistics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error while loading statistics'
+        });
+    }
+};
+
 module.exports = {
     getAllOrders,
+    getOrderStatistics,
     getOrderDetails,
     createAdminOrder,
     updateOrder,
