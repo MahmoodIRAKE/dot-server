@@ -127,9 +127,7 @@ async function updateOwnProfile(userId, { fullName, phoneNumber }) {
                     await admin.auth().updateUser(user.firebaseUid, withoutPhone);
                 }
             } else if (firebaseError.code !== 'auth/user-not-found') {
-                const err = new Error(
-                    firebaseError.message || 'Failed to sync authentication profile'
-                );
+                const err = new Error('Failed to sync authentication profile');
                 err.status = 400;
                 throw err;
             }

@@ -33,8 +33,7 @@ async function createClientUser({ fullName, phoneNumber, password, organization 
         return {
             success: false,
             status: 400,
-            error: 'Failed to create Firebase user',
-            message: firebaseError.message
+            error: 'Failed to create user'
         };
     }
 
@@ -65,8 +64,7 @@ async function createClientUser({ fullName, phoneNumber, password, organization 
         return {
             success: false,
             status: 400,
-            error: 'Failed to create user in database',
-            message: dbError.message
+            error: 'Failed to create user'
         };
     }
 }

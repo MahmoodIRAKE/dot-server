@@ -15,6 +15,7 @@ dotenv.config();
 // Import Firebase Admin (already configured in config/firebase.js)
 require('./config/firebase'); // ensures Firebase is initialized
 const SCRIPT = require('./scripts/seedAdmin');
+const { attachErrorCodes, errorHandler, sendError, ERROR_CODES } = require('./utils/httpErrors');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(fileUpload({
     tempFileDir: './tempUploads/'
 }));
 app.use(cors({ credentials: true, origin: true, maxAge: 86400 }));
+app.use(attachErrorCodes);
 
 // MongoDB Connection
 mongoose
@@ -57,11 +59,10 @@ app.set('views', path.join(__dirname, 'views'));
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Route not found'
-    });
+    sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Route not found');
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;

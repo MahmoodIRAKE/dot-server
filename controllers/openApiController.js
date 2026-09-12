@@ -17,7 +17,8 @@ const openApiAuth = async (req, res) => {
         if (authResult.error) {
             return res.status(authResult.status).json({
                 success: false,
-                error: authResult.error
+                error: authResult.error,
+                code: authResult.code
             });
         }
 
@@ -50,7 +51,8 @@ const openApiCreateOrder = async (req, res) => {
         if (authResult.error) {
             return res.status(authResult.status).json({
                 success: false,
-                error: authResult.error
+                error: authResult.error,
+                code: authResult.code
             });
         }
 

@@ -104,8 +104,8 @@ const signUp = async (req, res) => {
         }catch (firebaseError) {
             console.error("Firebase Auth Error:", firebaseError);
             return res.status(400).json({
-                message: "Failed to create Firebase user",
-                error: firebaseError.message
+                success: false,
+                error: 'Failed to create user'
             });
         }try {
 
@@ -133,8 +133,8 @@ const signUp = async (req, res) => {
             }
             console.error("Database Error:", dbError);
             return res.status(400).json({
-                message: "Failed to create user in database",
-                error: dbError.message
+                success: false,
+                error: 'Failed to create user'
             });
         }
 

@@ -11,10 +11,10 @@ try{
         message: 'paths saved  successfully',
     });
 }catch(error){
+    console.error('Error saving images paths:', error);
     res.status(500).json({
         success: false,
-        message: 'Error saving images paths',
-        error: error.message
+        error: 'Internal server error while saving files'
     });
 }
 };
@@ -29,10 +29,10 @@ const getImagesPathsByOrderId = async (req, res )=>{
             data: newFile
         });
     }catch(error){
+        console.error('Error getting images paths:', error);
         res.status(500).json({
             success: false,
-            message: 'Error getting images paths',
-            error: error.message
+            error: 'Internal server error while loading files'
         });
     }
     };
@@ -47,10 +47,10 @@ const deleteImagesPath = async (req, res )=>{
             data: newFile
         });
     }catch(error){
-        res.status(500).json({  
+        console.error('Error deleting images paths:', error);
+        res.status(500).json({
             success: false,
-            message: 'Error deleting images paths',
-            error: error.message
+            error: 'Internal server error while deleting files'
         });
     }
 }

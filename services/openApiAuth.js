@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { ERROR_CODES } = require('../utils/httpErrors');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -28,24 +29,25 @@ async function authenticateClientByCredentials(phoneNumber, password) {
     if (!phoneNumber || !password) {
         return {
             error: 'phoneNumber and password are required',
-            status: 400
+            status: 400,
+            code: ERROR_CODES.VALIDATION_ERROR
         };
     }
 
     const user = await User.findOne({ phoneNumber });
     if (!user) {
-        return { error: 'Invalid credentials', status: 401 };
+        return { error: 'Invalid credentials', status: 401, code: ERROR_CODES.INVALID_CREDENTIALS };
     }
     if (!user.isActive) {
-        return { error: 'Account is deactivated', status: 401 };
+        return { error: 'Account is deactivated', status: 401, code: ERROR_CODES.ACCOUNT_DEACTIVATED };
     }
     if (user.role !== 'client') {
-        return { error: 'Only client accounts can use the Open API', status: 403 };
+        return { error: 'Only client accounts can use the Open API', status: 403, code: ERROR_CODES.FORBIDDEN };
     }
 
     const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
-        return { error: 'Invalid credentials', status: 401 };
+        return { error: 'Invalid credentials', status: 401, code: ERROR_CODES.INVALID_CREDENTIALS };
     }
 
     return { user };
@@ -55,7 +57,8 @@ async function authenticateClientByToken(token) {
     if (!token) {
         return {
             error: 'Access denied. No token provided or invalid format.',
-            status: 401
+            status: 401,
+            code: ERROR_CODES.UNAUTHENTICATED
         };
     }
 
@@ -63,21 +66,21 @@ async function authenticateClientByToken(token) {
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = await User.findById(decoded.userId);
         if (!user) {
-            return { error: 'User not found', status: 401 };
+            return { error: 'User not found', status: 401, code: ERROR_CODES.UNAUTHENTICATED };
         }
         if (!user.isActive) {
-            return { error: 'Account is deactivated', status: 401 };
+            return { error: 'Account is deactivated', status: 401, code: ERROR_CODES.ACCOUNT_DEACTIVATED };
         }
         if (user.role !== 'client') {
-            return { error: 'Only client accounts can use the Open API', status: 403 };
+            return { error: 'Only client accounts can use the Open API', status: 403, code: ERROR_CODES.FORBIDDEN };
         }
         return { user };
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
-            return { error: 'Token expired', status: 401 };
+            return { error: 'Token expired', status: 401, code: ERROR_CODES.TOKEN_EXPIRED };
         }
         if (error.name === 'JsonWebTokenError') {
-            return { error: 'Invalid token', status: 401 };
+            return { error: 'Invalid token', status: 401, code: ERROR_CODES.TOKEN_INVALID };
         }
         throw error;
     }
@@ -99,7 +102,8 @@ async function resolveOpenApiClient(req) {
 
     return {
         error: 'Authentication required: use Authorization Bearer <token> or send phoneNumber and password in the request body',
-        status: 401
+        status: 401,
+        code: ERROR_CODES.UNAUTHENTICATED
     };
 }
 
