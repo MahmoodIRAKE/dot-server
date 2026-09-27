@@ -2,7 +2,8 @@ const express = require('express');
 const {
     saveImagesPath,
     getImagesPathsByOrderId,
-    deleteImagesPath
+    deleteImagesPath,
+    setPaymentFiles
 
 } = require('../controllers/fileController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -20,6 +21,11 @@ router.get('/orders/files/:orderId',
     authMiddleware,
     authorizeRole("client","admin","superAdmin","miniAdmin"),
     getImagesPathsByOrderId);
+
+router.put('/orders/:orderId/payment-files',
+    authMiddleware,
+    authorizeRole("client","admin","superAdmin","miniAdmin"),
+    setPaymentFiles);
 
 router.delete('/orders/files/:filePath',
     authMiddleware,
