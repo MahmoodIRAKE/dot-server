@@ -6,6 +6,12 @@ const admin = require('../config/firebase');
 const saveImagesPath = async (req, res )=>{
 try{
     let fileData =req.body
+    if ([].concat(fileData || []).some((f) => f && f.fileCategory === 'production')) {
+        return res.status(400).json({
+            success: false,
+            error: 'Production files must be saved via /orders/:orderId/production-files'
+        });
+    }
     const newFile = await Files.insertMany(fileData);
     res.status(200).json({
         success: true,
@@ -23,7 +29,7 @@ try{
 const getImagesPathsByOrderId = async (req, res )=>{
     try{
         let {orderId} =req.params
-        const newFile = await Files.find({orderId});
+        const newFile = await Files.find({ orderId, fileCategory: { $ne: 'production' } });
         res.status(200).json({
             success: true,
             message: 'paths saved  successfully',
@@ -41,7 +47,7 @@ const getImagesPathsByOrderId = async (req, res )=>{
 const deleteImagesPath = async (req, res )=>{
     try{
         let {filePath} =req.params
-        const newFile = await Files.deleteMany({filePath});
+        const newFile = await Files.deleteMany({ filePath, fileCategory: { $ne: 'production' } });
         res.status(200).json({
             success: true,
             message: 'paths deleted  successfully',

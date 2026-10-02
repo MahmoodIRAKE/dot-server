@@ -21,7 +21,7 @@ const Users = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['client', 'admin', 'superAdmin', 'worker', 'miniAdmin'],
+        enum: ['client', 'admin', 'superAdmin', 'worker', 'miniAdmin', 'graphicDesigner', 'factoryWorker'],
         required: true
     },
     organizationCode: {

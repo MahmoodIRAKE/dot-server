@@ -21,6 +21,18 @@ const orderSchema = new mongoose.Schema({
         ref: 'Users',
         required: false
     },
+    /** Internal DOT graphic designer assigned to this order. */
+    assignedDesignerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
+        required: false
+    },
+    /** Internal DOT factory worker assigned to this order. */
+    assignedFactoryWorkerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
+        required: false
+    },
     orderId: {
         type: String,
         allowNull: true

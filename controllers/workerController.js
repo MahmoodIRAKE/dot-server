@@ -2,10 +2,19 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Files = require('../models/files');
 
+/** Internal DOT employee role → the order field that assigns orders to that role. */
+const ASSIGNMENT_FIELD_BY_ROLE = {
+    worker: 'assignedWorkerId',
+    graphicDesigner: 'assignedDesignerId',
+    factoryWorker: 'assignedFactoryWorkerId'
+};
+
+const assignedToMeFilter = (user) => ({ [ASSIGNMENT_FIELD_BY_ROLE[user.role]]: user.userId });
+
 const getWorkerOrders = async (req, res) => {
     try {
         const orders = await Order.find({
-            assignedWorkerId: req.user.userId,
+            ...assignedToMeFilter(req.user),
             $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
         })
             .populate('userID', 'username fullName organizationCode phoneNumber')
@@ -37,7 +46,7 @@ const getWorkerOrderDetails = async (req, res) => {
 
         const order = await Order.findOne({
             _id: orderId,
-            assignedWorkerId: req.user.userId,
+            ...assignedToMeFilter(req.user),
             $or: [{ isArchived: false }, { isArchived: { $exists: false } }]
         })
             .populate('userID', 'username fullName organizationCode phoneNumber')

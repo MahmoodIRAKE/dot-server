@@ -19,6 +19,8 @@ const AUDITED_FIELDS = [
     'status',
     'customerStatus',
     'assignedWorkerId',
+    'assignedDesignerId',
+    'assignedFactoryWorkerId',
     'userID',
     'organizationId',
     'isPrivateClient'

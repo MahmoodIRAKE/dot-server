@@ -5,17 +5,20 @@ const authorizeRole = require('../middlewares/authorizeRole');
 
 const router = express.Router();
 
+/** Internal DOT employees: field worker, graphic designer, factory worker */
+const internalEmployees = ['worker', 'graphicDesigner', 'factoryWorker'];
+
 router.get(
     '/orders',
     authMiddleware,
-    authorizeRole('worker'),
+    authorizeRole(...internalEmployees),
     getWorkerOrders
 );
 
 router.get(
     '/orders/:orderId',
     authMiddleware,
-    authorizeRole('worker'),
+    authorizeRole(...internalEmployees),
     getWorkerOrderDetails
 );
 

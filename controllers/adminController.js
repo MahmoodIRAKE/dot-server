@@ -573,7 +573,7 @@ const createNewWorker = async (req, res) => {
             });
         }
 
-        const allowedStaffRoles = ['worker', 'miniAdmin', 'admin'];
+        const allowedStaffRoles = ['worker', 'miniAdmin', 'admin', 'graphicDesigner', 'factoryWorker'];
         const staffRole = allowedStaffRoles.includes(requestedRole) ? requestedRole : 'worker';
 
         const username = `${phoneNumber}@dot.com`;
@@ -614,7 +614,13 @@ const createNewWorker = async (req, res) => {
         });
 
         const savedUser = await newUser.save();
-        const roleLabels = { worker: 'Worker', miniAdmin: 'Mini admin', admin: 'Admin' };
+        const roleLabels = {
+            worker: 'Worker',
+            miniAdmin: 'Mini admin',
+            admin: 'Admin',
+            graphicDesigner: 'Graphic designer',
+            factoryWorker: 'Factory worker'
+        };
         const roleLabel = roleLabels[staffRole] || 'Staff';
         res.status(201).json({
             success: true,
@@ -643,17 +649,33 @@ const createNewWorker = async (req, res) => {
     }
 };
 
-// Assign or unassign worker on an order (Admin). Body: { workerId } — null/empty to unassign
+/** Internal DOT employee assignment slots on an order: assignment type → { order field, required role } */
+const ORDER_ASSIGNMENT_TYPES = {
+    worker: { field: 'assignedWorkerId', role: 'worker' },
+    graphicDesigner: { field: 'assignedDesignerId', role: 'graphicDesigner' },
+    factoryWorker: { field: 'assignedFactoryWorkerId', role: 'factoryWorker' }
+};
+
+// Assign or unassign an internal employee on an order (Admin).
+// Body: { workerId, assignmentType? } — workerId null/empty to unassign; assignmentType defaults to 'worker' (field worker)
 const assignOrderToWorker = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { workerId } = req.body;
+        const { workerId, assignmentType = 'worker' } = req.body;
         const actor = resolveActor(req.user);
+
+        const assignment = ORDER_ASSIGNMENT_TYPES[assignmentType];
+        if (!assignment) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid assignmentType'
+            });
+        }
 
         if (workerId === undefined || workerId === null || workerId === '') {
             const { order: updated } = await updateOrderWithAudit({
                 orderId,
-                updateData: { assignedWorkerId: null },
+                updateData: { [assignment.field]: null },
                 actor
             });
 
@@ -677,16 +699,16 @@ const assignOrderToWorker = async (req, res) => {
         }
 
         const worker = await User.findById(workerId);
-        if (!worker || worker.role !== 'worker') {
+        if (!worker || worker.role !== assignment.role) {
             return res.status(400).json({
                 success: false,
-                error: 'workerId must reference an existing user with role worker'
+                error: `workerId must reference an existing user with role ${assignment.role}`
             });
         }
 
         const { order: updated } = await updateOrderWithAudit({
             orderId,
-            updateData: { assignedWorkerId: worker._id },
+            updateData: { [assignment.field]: worker._id },
             actor
         });
 
@@ -821,7 +843,7 @@ const updateUser = async (req, res) => {
     }
 };
 
-const DELETABLE_USER_ROLES = ['client', 'worker', 'miniAdmin'];
+const DELETABLE_USER_ROLES = ['client', 'worker', 'miniAdmin', 'graphicDesigner', 'factoryWorker'];
 
 async function deleteFirebaseAuthUser(firebaseUid) {
     if (!firebaseUid) return;
@@ -871,12 +893,17 @@ const deleteUser = async (req, res) => {
         if (!DELETABLE_USER_ROLES.includes(user.role)) {
             return res.status(400).json({
                 success: false,
-                error: 'Only client, worker, or miniAdmin users can be deleted'
+                error: 'Only client, worker, graphicDesigner, factoryWorker, or miniAdmin users can be deleted'
             });
         }
 
         const ordersPreserved = await Order.countDocuments({
-            $or: [{ userID: user._id }, { assignedWorkerId: user._id }]
+            $or: [
+                { userID: user._id },
+                { assignedWorkerId: user._id },
+                { assignedDesignerId: user._id },
+                { assignedFactoryWorkerId: user._id }
+            ]
         });
 
         try {
@@ -894,6 +921,18 @@ const deleteUser = async (req, res) => {
             await Order.updateMany(
                 { assignedWorkerId: user._id },
                 { $unset: { assignedWorkerId: 1 } }
+            );
+        }
+        if (user.role === 'graphicDesigner') {
+            await Order.updateMany(
+                { assignedDesignerId: user._id },
+                { $unset: { assignedDesignerId: 1 } }
+            );
+        }
+        if (user.role === 'factoryWorker') {
+            await Order.updateMany(
+                { assignedFactoryWorkerId: user._id },
+                { $unset: { assignedFactoryWorkerId: 1 } }
             );
         }
 

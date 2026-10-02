@@ -9,8 +9,29 @@ const {
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRole = require("../middlewares/authorizeRole");
 const {uploadFilesToOrder} = require("../controllers/adminController");
+const {
+    listProductionFiles,
+    addProductionFiles,
+    deleteProductionFile
+} = require('../controllers/productionFileController');
 
 const router = express.Router();
+
+// Production (design / CNC) files — view: admins + assigned designer/factory worker; manage: admins + assigned designer
+router.get('/orders/:orderId/production-files',
+    authMiddleware,
+    authorizeRole("admin","superAdmin","miniAdmin","graphicDesigner","factoryWorker"),
+    listProductionFiles);
+
+router.post('/orders/:orderId/production-files',
+    authMiddleware,
+    authorizeRole("admin","superAdmin","miniAdmin","graphicDesigner"),
+    addProductionFiles);
+
+router.delete('/orders/:orderId/production-files/:fileId',
+    authMiddleware,
+    authorizeRole("admin","superAdmin","miniAdmin","graphicDesigner"),
+    deleteProductionFile);
 
 router.post('/orders/files',
     authMiddleware,

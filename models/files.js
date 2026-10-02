@@ -21,8 +21,16 @@ const files = new mongoose.Schema({
     },
     fileCategory: {
         type: String,
-        enum: ['payment', 'work', 'public'],
+        enum: ['payment', 'work', 'public', 'production'],
         required: true
+    },
+    /** Production files only: original file name, size in bytes, and uploader. */
+    originalName: { type: String, required: false },
+    fileSize: { type: Number, required: false },
+    uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
+        required: false
     },
     /** Tokenized download URL for public-status images (no login). */
     publicUrl: {
